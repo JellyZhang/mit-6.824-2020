@@ -20,10 +20,10 @@ const (
 
 type Master struct {
 	// Your definitions here.
-	taskQueue map[int32]*Task
-	mu        sync.Mutex
-	status    int32 // definitions above.
-	nReduce   int32
+	taskMap map[int32]*Task
+	mu      sync.Mutex
+	status  int32 // definitions above.
+	nReduce int32
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -33,7 +33,7 @@ func (m *Master) GetTask(req *GetTaskRequest, resp *GetTaskResponse) error {
 	defer m.mu.Unlock()
 
 	waitingTask := 0
-	for _, v := range m.taskQueue {
+	for _, v := range m.taskMap {
 
 		if v.Status == StatusReady {
 			// 1.1 find a ready task, just send it.
@@ -56,7 +56,7 @@ func (m *Master) GetTask(req *GetTaskRequest, resp *GetTaskResponse) error {
 		return nil
 	}
 
-	// 3. program come to this line meaning all tasks in m.taskQueue is finished.
+	// 3. program come to this line meaning all tasks in m.taskMap is finished.
 	switch m.status {
 	case MapPeroid:
 		// 3.1.1 map finished, change to reduce-period
@@ -66,7 +66,7 @@ func (m *Master) GetTask(req *GetTaskRequest, resp *GetTaskResponse) error {
 		loadReduceTasks(m)
 
 		// 3.1.3 pick the first task to given out.(in fact, any is ok).
-		resp.Task = *m.taskQueue[0]
+		resp.Task = *m.taskMap[0]
 		resp.ErrCode = ErrSuccess
 		return nil
 	case ReducePeroid:
@@ -84,11 +84,11 @@ func (m *Master) GetTask(req *GetTaskRequest, resp *GetTaskResponse) error {
 	return nil
 }
 
-// load all map tasks to m.TaskQueue
+// load all map tasks to m.TaskMap
 func loadMapTasks(m *Master, files []string) {
-	m.taskQueue = make(map[int32]*Task)
+	m.taskMap = make(map[int32]*Task)
 	for i := 0; i < len(files); i++ {
-		m.taskQueue[int32(i)] = &Task{
+		m.taskMap[int32(i)] = &Task{
 			TaskId:   int32(i),
 			TaskType: TypeMap,
 			Content:  files[i],
@@ -97,11 +97,11 @@ func loadMapTasks(m *Master, files []string) {
 	}
 }
 
-// load all reduce tasks to m.TaskQueue
+// load all reduce tasks to m.TaskMap
 func loadReduceTasks(m *Master) {
-	m.taskQueue = make(map[int32]*Task)
+	m.taskMap = make(map[int32]*Task)
 	for i := 0; int32(i) < m.nReduce; i++ {
-		m.taskQueue[int32(i)] = &Task{
+		m.taskMap[int32(i)] = &Task{
 			TaskId:   int32(i),
 			TaskType: TypeReduce,
 			Content:  fmt.Sprint(m.nReduce),
@@ -117,14 +117,14 @@ func checkTask(m *Master, taskId int32, taskType int32) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.taskQueue[taskId].TaskType != taskType {
+	if m.taskMap[taskId].TaskType != taskType {
 		// this means we are already at reduce-period, and this func try to check one of the map-tasks.
 		// since we can get into reduce-period, which means map-tasks all done.
 		// so just ignore it.
 		return
 	}
-	if m.taskQueue[taskId].Status == StatusSent {
-		m.taskQueue[taskId].Status = StatusReady
+	if m.taskMap[taskId].Status == StatusSent {
+		m.taskMap[taskId].Status = StatusReady
 	}
 }
 
@@ -133,16 +133,16 @@ func (m *Master) Notice(req *NoticeRequest, resp *NoticeResponse) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.taskQueue[req.TaskId].TaskType != req.TaskType {
+	if m.taskMap[req.TaskId].TaskType != req.TaskType {
 		// old notice, ignore.
 		return nil
 	}
 
-	switch m.taskQueue[req.TaskId].Status {
+	switch m.taskMap[req.TaskId].Status {
 	case StatusFinish:
 		return nil
 	case StatusReady, StatusSent:
-		m.taskQueue[req.TaskId].Status = StatusFinish
+		m.taskMap[req.TaskId].Status = StatusFinish
 	}
 	return nil
 }
