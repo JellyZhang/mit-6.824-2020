@@ -1,0 +1,8 @@
+pkg/
+api.key
+*-handin.tar.gz
+*.so
+mrmaster
+mrsequential
+mrworker
+**/mr-tmp
