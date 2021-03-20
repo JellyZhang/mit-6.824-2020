@@ -1,9 +1,9 @@
-# This is the Makefile helping you submit the labs.  
-# Just create 6.824/api.key with your API key in it, 
-# and submit your lab with the following command: 
-#     $ make [lab1|lab2a|lab2b|lab2c|lab3a|lab3b|lab4a|lab4b]
+# This is the Makefile helping you submit the labs.
+# Just create 6.824/api.key with your API key in it,
+# and submit your lab with the following command:
+#     $ make [lab1|lab2a|lab2b|lab2c|lab2d|lab3a|lab3b|lab4a|lab4b]
 
-LABS=" lab1 lab2a lab2b lab2c lab3a lab3b lab4a lab4b "
+LABS=" lab1 lab2a lab2b lab2c lab2d lab3a lab3b lab4a lab4b "
 
 %: check-%
 	@echo "Preparing $@-handin.tar.gz"
@@ -28,11 +28,9 @@ LABS=" lab1 lab2a lab2b lab2c lab3a lab3b lab4a lab4b "
 			read line; \
 			if test "$$line" != "yes" ; then echo "Giving up submission"; exit; fi; \
 			if test `stat -c "%s" "$@-handin.tar.gz" 2>/dev/null || stat -f "%z" "$@-handin.tar.gz"` -ge 20971520 ; then echo "File exceeds 20MB."; exit; fi; \
-			mv api.key api.key.fix ; \
-			cat api.key.fix | tr -d '\n' > api.key ; \
-			rm api.key.fix ; \
-			curl -F file=@$@-handin.tar.gz -F "key=<api.key" \
-			https://6824.scripts.mit.edu/2020/handin.py/upload > /dev/null || { \
+			cat api.key | tr -d '\n' > .api.key.trimmed ; \
+			curl -F file=@$@-handin.tar.gz -F "key=<.api.key.trimmed" \
+			https://6824.scripts.mit.edu/2021/handin.py/upload > /dev/null || { \
 				echo ; \
 				echo "Submit seems to have failed."; \
 				echo "Please upload the tarball manually on the submission website."; } \
@@ -44,4 +42,4 @@ LABS=" lab1 lab2a lab2b lab2c lab3a lab3b lab4a lab4b "
 .PHONY: check-%
 check-%:
 	@echo "Checking that your submission builds correctly..."
-	@./.check-build git://g.csail.mit.edu/6.824-golabs-2020 $(patsubst check-%,%,$@)
+	@./.check-build git://g.csail.mit.edu/6.824-golabs-2021 $(patsubst check-%,%,$@)

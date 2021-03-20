@@ -1,18 +1,18 @@
 package kvraft
 
 import (
-	"../labgob"
-	"../labrpc"
+	"6.824/labgob"
+	"6.824/labrpc"
+	"6.824/raft"
 	"log"
-	"../raft"
 	"sync"
 	"sync/atomic"
 )
 
-const Debug = 0
+const Debug = false
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
-	if Debug > 0 {
+	if Debug {
 		log.Printf(format, a...)
 	}
 	return

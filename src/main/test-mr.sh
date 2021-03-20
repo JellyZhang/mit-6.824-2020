@@ -1,13 +1,13 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 #
 # basic map-reduce test
 #
 
-RACE=
+#RACE=
 
-# uncomment this to run the tests with the Go race detector.
-#RACE=-race
+# comment this to run the tests without the Go race detector.
+RACE=-race
 
 # run the test in a fresh sub-directory.
 rm -rf mr-tmp
@@ -20,14 +20,17 @@ rm -f mr-*
 (cd ../../mrapps && go build $RACE -buildmode=plugin indexer.go) || exit 1
 (cd ../../mrapps && go build $RACE -buildmode=plugin mtiming.go) || exit 1
 (cd ../../mrapps && go build $RACE -buildmode=plugin rtiming.go) || exit 1
+(cd ../../mrapps && go build $RACE -buildmode=plugin jobcount.go) || exit 1
+(cd ../../mrapps && go build $RACE -buildmode=plugin early_exit.go) || exit 1
 (cd ../../mrapps && go build $RACE -buildmode=plugin crash.go) || exit 1
 (cd ../../mrapps && go build $RACE -buildmode=plugin nocrash.go) || exit 1
-(cd .. && go build $RACE mrmaster.go) || exit 1
+(cd .. && go build $RACE mrcoordinator.go) || exit 1
 (cd .. && go build $RACE mrworker.go) || exit 1
 (cd .. && go build $RACE mrsequential.go) || exit 1
 
 failed_any=0
 
+#########################################################
 # first word-count
 
 # generate the correct output
@@ -37,9 +40,10 @@ rm -f mr-out*
 
 echo '***' Starting wc test.
 
-timeout -k 2s 180s ../mrmaster ../pg*txt &
+timeout -k 2s 180s ../mrcoordinator ../pg*txt &
+pid=$!
 
-# give the master time to create the sockets.
+# give the coordinator time to create the sockets.
 sleep 1
 
 # start multiple workers.
@@ -47,15 +51,11 @@ timeout -k 2s 180s ../mrworker ../../mrapps/wc.so &
 timeout -k 2s 180s ../mrworker ../../mrapps/wc.so &
 timeout -k 2s 180s ../mrworker ../../mrapps/wc.so &
 
-# wait for one of the processes to exit.
-# under bash, this waits for all processes,
-# including the master.
-wait
+# wait for the coordinator to exit.
+wait $pid
 
-# the master or a worker has exited. since workers are required
-# to exit when a job is completely finished, and not before,
-# that means the job has finished.
-
+# since workers are required to exit when a job is completely finished,
+# and not before, that means the job has finished.
 sort mr-out* | grep . > mr-wc-all
 if cmp mr-wc-all mr-correct-wc.txt
 then
@@ -66,9 +66,10 @@ else
   failed_any=1
 fi
 
-# wait for remaining workers and master to exit.
-wait ; wait ; wait
+# wait for remaining workers and coordinator to exit.
+wait
 
+#########################################################
 # now indexer
 rm -f mr-*
 
@@ -79,7 +80,7 @@ rm -f mr-out*
 
 echo '***' Starting indexer test.
 
-timeout -k 2s 180s ../mrmaster ../pg*txt &
+timeout -k 2s 180s ../mrcoordinator ../pg*txt &
 sleep 1
 
 # start multiple workers
@@ -96,14 +97,14 @@ else
   failed_any=1
 fi
 
-wait ; wait
+wait
 
-
+#########################################################
 echo '***' Starting map parallelism test.
 
-rm -f mr-out* mr-worker*
+rm -f mr-*
 
-timeout -k 2s 180s ../mrmaster ../pg*txt &
+timeout -k 2s 180s ../mrcoordinator ../pg*txt &
 sleep 1
 
 timeout -k 2s 180s ../mrworker ../../mrapps/mtiming.so &
@@ -126,14 +127,15 @@ else
   failed_any=1
 fi
 
-wait ; wait
+wait
 
 
+#########################################################
 echo '***' Starting reduce parallelism test.
 
-rm -f mr-out* mr-worker*
+rm -f mr-*
 
-timeout -k 2s 180s ../mrmaster ../pg*txt &
+timeout -k 2s 180s ../mrcoordinator ../pg*txt &
 sleep 1
 
 timeout -k 2s 180s ../mrworker ../../mrapps/rtiming.so &
@@ -149,24 +151,91 @@ else
   echo '---' reduce parallelism test: PASS
 fi
 
-wait ; wait
+wait
 
+#########################################################
+echo '***' Starting job count test.
+
+rm -f mr-*
+
+timeout -k 2s 180s ../mrcoordinator ../pg*txt &
+sleep 1
+
+timeout -k 2s 180s ../mrworker ../../mrapps/jobcount.so &
+timeout -k 2s 180s ../mrworker ../../mrapps/jobcount.so
+timeout -k 2s 180s ../mrworker ../../mrapps/jobcount.so &
+timeout -k 2s 180s ../mrworker ../../mrapps/jobcount.so
+
+NT=`cat mr-out* | awk '{print $2}'`
+if [ "$NT" -ne "8" ]
+then
+  echo '---' map jobs ran incorrect number of times "($NT != 8)"
+  echo '---' job count test: FAIL
+  failed_any=1
+else
+  echo '---' job count test: PASS
+fi
+
+wait
+
+#########################################################
+# test whether any worker or coordinator exits before the
+# task has completed (i.e., all output files have been finalized)
+rm -f mr-*
+
+echo '***' Starting early exit test.
+
+timeout -k 2s 180s ../mrcoordinator ../pg*txt &
+
+# give the coordinator time to create the sockets.
+sleep 1
+
+# start multiple workers.
+timeout -k 2s 180s ../mrworker ../../mrapps/early_exit.so &
+timeout -k 2s 180s ../mrworker ../../mrapps/early_exit.so &
+timeout -k 2s 180s ../mrworker ../../mrapps/early_exit.so &
+
+# wait for any of the coord or workers to exit
+# `jobs` ensures that any completed old processes from other tests
+# are not waited upon
+jobs &> /dev/null
+wait -n
+
+# a process has exited. this means that the output should be finalized
+# otherwise, either a worker or the coordinator exited early
+sort mr-out* | grep . > mr-wc-all-initial
+
+# wait for remaining workers and coordinator to exit.
+wait
+
+# compare initial and final outputs
+sort mr-out* | grep . > mr-wc-all-final
+if cmp mr-wc-all-final mr-wc-all-initial
+then
+  echo '---' early exit test: PASS
+else
+  echo '---' output changed after first worker exited
+  echo '---' early exit test: FAIL
+  failed_any=1
+fi
+rm -f mr-*
+
+#########################################################
+echo '***' Starting crash test.
 
 # generate the correct output
 ../mrsequential ../../mrapps/nocrash.so ../pg*txt || exit 1
 sort mr-out-0 > mr-correct-crash.txt
 rm -f mr-out*
 
-echo '***' Starting crash test.
-
 rm -f mr-done
-(timeout -k 2s 180s ../mrmaster ../pg*txt ; touch mr-done ) &
+(timeout -k 2s 180s ../mrcoordinator ../pg*txt ; touch mr-done ) &
 sleep 1
 
 # start multiple workers
 timeout -k 2s 180s ../mrworker ../../mrapps/crash.so &
 
-# mimic rpc.go's masterSock()
+# mimic rpc.go's coordinatorSock()
 SOCKNAME=/var/tmp/824-mr-`id -u`
 
 ( while [ -e $SOCKNAME -a ! -f mr-done ]
@@ -188,8 +257,6 @@ do
 done
 
 wait
-wait
-wait
 
 rm $SOCKNAME
 sort mr-out* | grep . > mr-crash-all
@@ -202,6 +269,7 @@ else
   failed_any=1
 fi
 
+########################################################
 if [ $failed_any -eq 0 ]; then
     echo '***' PASSED ALL TESTS
 else

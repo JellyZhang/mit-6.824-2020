@@ -3,8 +3,8 @@ package shardkv
 //
 // Sharded key/value server.
 // Lots of replica groups, each running op-at-a-time paxos.
-// Shardmaster decides which group serves each shard.
-// Shardmaster may change shard assignment from time to time.
+// Shardctrler decides which group serves each shard.
+// Shardctrler may change shard assignment from time to time.
 //
 // You will have to modify these definitions.
 //

@@ -50,7 +50,7 @@ func Worker(mapf func(string, string) []KeyValue,
 	for {
 		req := &GetTaskRequest{}
 		resp := &GetTaskResponse{}
-		if call("Master.GetTask", req, resp) == true {
+		if call("Coordinator.GetTask", req, resp) == true {
 			switch resp.ErrCode {
 			case ErrWait:
 				// sleep waiting
@@ -69,12 +69,12 @@ func Worker(mapf func(string, string) []KeyValue,
 				}
 			}
 		} else {
-			// rpc call failed, master is closed, meaning job finished.
+			// rpc call failed, coordinator is closed, meaning job finished.
 			break
 		}
 	}
 
-	// uncomment to send the Example RPC to the master.
+	// uncomment to send the Example RPC to the coordinator.
 	//CallExample()
 
 }
@@ -85,18 +85,18 @@ func DoMap(task Task, mapf func(string, string) []KeyValue) {
 	filename := task.Content
 	file, err := os.Open(filename)
 	if err != nil {
-		log.Fatalf("[worker]cannot open %v", filename)
+		log.Fatalf("[DoMap]cannot open %v", filename)
 	}
 	content, err := ioutil.ReadAll(file)
 	if err != nil {
-		log.Fatalf("[worker]cannot read %v", filename)
+		log.Fatalf("[DoMap]cannot read %v", filename)
 	}
 	file.Close()
 	kva := mapf(filename, string(content))
 
 	// 2. create temp file, and rename it atomically later.
 	oname := fmt.Sprintf("mr-map-%v", task.TaskId)
-	tmpfile, err := ioutil.TempFile(".", oname)
+	tmpfile, err := ioutil.TempFile(".", "temp-"+oname)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func DoMap(task Task, mapf func(string, string) []KeyValue) {
 	enc := json.NewEncoder(tmpfile)
 	for _, kv := range kva {
 		if err := enc.Encode(&kv); err != nil {
-			log.Fatalf("[worker]encode save json err=%v\n", err)
+			log.Fatalf("[DoMap]encode save json err=%v\n", err)
 		}
 	}
 	if err := tmpfile.Close(); err != nil {
@@ -115,8 +115,8 @@ func DoMap(task Task, mapf func(string, string) []KeyValue) {
 	// 4. atomically rename tmpfile
 	os.Rename(tmpfile.Name(), oname)
 
-	// 5. notice master that this task is done.
-	NoticeMaster(task.TaskId, task.TaskType)
+	// 5. notify coordinator that this task is done.
+	NotifyCoordinator(task.TaskId, task.TaskType)
 }
 
 // read all "mr-map-*" files, and do reduce of keys that ihash(key)==reduceNumber.
@@ -129,14 +129,14 @@ func DoReduce(task Task, reducef func(string, []string) string) {
 		log.Fatal(err)
 	}
 	for _, file := range files {
-		matched, _ := regexp.Match(`mr-map-*`, []byte(file.Name()))
+		matched, _ := regexp.Match(`^mr-map-*`, []byte(file.Name()))
 		if !matched {
 			continue
 		}
 		filename := file.Name()
 		file, err := os.Open(filename)
 		if err != nil {
-			log.Fatalf("cannot open %v", filename)
+			log.Fatalf("[DoReduce]cannot open %v", filename)
 		}
 		dec := json.NewDecoder(file)
 		// 2. Get total reduce number from task.Content
@@ -184,58 +184,36 @@ func DoReduce(task Task, reducef func(string, []string) string) {
 	// 7. atomically rename tmpfile
 	os.Rename(tmpfile.Name(), oname)
 
-	// 8. notice master that this task is done.
-	NoticeMaster(task.TaskId, task.TaskType)
+	// 8. notify coordinator that this task is done.
+	NotifyCoordinator(task.TaskId, task.TaskType)
 }
 
-// send Notice to master, to tell master that this task is finished.
-func NoticeMaster(taskId int32, taskType int32) {
-	req := &NoticeRequest{
+// send Notify to coordinator, to tell coordinator that this task is finished.
+func NotifyCoordinator(taskId int32, taskType int32) {
+	req := &NotifyRequest{
 		TaskId:   taskId,
 		TaskType: taskType,
 	}
-	resp := &NoticeResponse{}
-	if call("Master.Notice", req, resp) == true {
+	resp := &NotifyResponse{}
+	if call("Coordinator.Notify", req, resp) == true {
 		return
 	}
-	// if rpc call failed, meaning master is closed, meaning job is finished.
+	// if rpc call failed, meaning coordinator is closed, meaning job is finished.
 	return
 }
 
 //
-// example function to show how to make an RPC call to the master.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
-
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	call("Master.Example", &args, &reply)
-
-	// reply.Y should be 100.
-	fmt.Printf("reply.Y %v\n", reply.Y)
-}
-
-//
-// send an RPC request to the master, wait for the response.
+// send an RPC request to the coordinator, wait for the response.
 // usually returns true.
 // returns false if something goes wrong.
 //
 func call(rpcname string, args interface{}, reply interface{}) bool {
 	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
-	sockname := masterSock()
+	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
-		log.Fatal("dialing:", err)
+		//log.Fatal("dialing:", err)
+		return false
 	}
 	defer c.Close()
 
@@ -244,6 +222,6 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 		return true
 	}
 
-	fmt.Println(err)
+	//fmt.Println("[call]", err)
 	return false
 }

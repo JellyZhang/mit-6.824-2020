@@ -1,7 +1,7 @@
 package shardkv
 
-import "../porcupine"
-import "../models"
+import "6.824/porcupine"
+import "6.824/models"
 import "testing"
 import "strconv"
 import "time"
@@ -52,12 +52,16 @@ func TestStaticShards(t *testing.T) {
 	cfg.ShutdownGroup(1)
 	cfg.checklogs() // forbid snapshots
 
-	ch := make(chan bool)
+	ch := make(chan string)
 	for xi := 0; xi < n; xi++ {
 		ck1 := cfg.makeClient() // only one call allowed per client
 		go func(i int) {
-			defer func() { ch <- true }()
-			check(t, ck1, ka[i], va[i])
+			v := ck1.Get(ka[i])
+			if v != va[i] {
+				ch <- fmt.Sprintf("Get(%v): expected:\n%v\nreceived:\n%v", ka[i], va[i], v)
+			} else {
+				ch <- ""
+			}
 		}(xi)
 	}
 
@@ -66,7 +70,10 @@ func TestStaticShards(t *testing.T) {
 	done := false
 	for done == false {
 		select {
-		case <-ch:
+		case err := <-ch:
+			if err != "" {
+				t.Fatal(err)
+			}
 			ndone += 1
 		case <-time.After(time.Second * 2):
 			done = true

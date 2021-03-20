@@ -35,10 +35,10 @@ type GetTaskResponse struct {
 	Task    Task
 }
 
-type NoticeRequest struct {
+type NotifyRequest struct {
 	TaskId   int32
 	TaskType int32
 }
 
-type NoticeResponse struct {
+type NotifyResponse struct {
 }

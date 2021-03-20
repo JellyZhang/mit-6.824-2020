@@ -1,12 +1,11 @@
 package kvraft
 
-import "../porcupine"
-import "../models"
+import "6.824/porcupine"
+import "6.824/models"
 import "testing"
 import "strconv"
 import "time"
 import "math/rand"
-import "log"
 import "strings"
 import "sync"
 import "sync/atomic"
@@ -19,25 +18,78 @@ const electionTimeout = 1 * time.Second
 
 const linearizabilityCheckTimeout = 1 * time.Second
 
+type OpLog struct {
+	operations []porcupine.Operation
+	sync.Mutex
+}
+
+func (log *OpLog) Append(op porcupine.Operation) {
+	log.Lock()
+	defer log.Unlock()
+	log.operations = append(log.operations, op)
+}
+
+func (log *OpLog) Read() []porcupine.Operation {
+	log.Lock()
+	defer log.Unlock()
+	ops := make([]porcupine.Operation, len(log.operations))
+	copy(ops, log.operations)
+	return ops
+}
+
 // get/put/putappend that keep counts
-func Get(cfg *config, ck *Clerk, key string) string {
+func Get(cfg *config, ck *Clerk, key string, log *OpLog, cli int) string {
+	start := time.Now().UnixNano()
 	v := ck.Get(key)
+	end := time.Now().UnixNano()
 	cfg.op()
+	if log != nil {
+		log.Append(porcupine.Operation{
+			Input:    models.KvInput{Op: 0, Key: key},
+			Output:   models.KvOutput{Value: v},
+			Call:     start,
+			Return:   end,
+			ClientId: cli,
+		})
+	}
+
 	return v
 }
 
-func Put(cfg *config, ck *Clerk, key string, value string) {
+func Put(cfg *config, ck *Clerk, key string, value string, log *OpLog, cli int) {
+	start := time.Now().UnixNano()
 	ck.Put(key, value)
+	end := time.Now().UnixNano()
 	cfg.op()
+	if log != nil {
+		log.Append(porcupine.Operation{
+			Input:    models.KvInput{Op: 1, Key: key, Value: value},
+			Output:   models.KvOutput{},
+			Call:     start,
+			Return:   end,
+			ClientId: cli,
+		})
+	}
 }
 
-func Append(cfg *config, ck *Clerk, key string, value string) {
+func Append(cfg *config, ck *Clerk, key string, value string, log *OpLog, cli int) {
+	start := time.Now().UnixNano()
 	ck.Append(key, value)
+	end := time.Now().UnixNano()
 	cfg.op()
+	if log != nil {
+		log.Append(porcupine.Operation{
+			Input:    models.KvInput{Op: 2, Key: key, Value: value},
+			Output:   models.KvOutput{},
+			Call:     start,
+			Return:   end,
+			ClientId: cli,
+		})
+	}
 }
 
 func check(cfg *config, t *testing.T, ck *Clerk, key string, value string) {
-	v := Get(cfg, ck, key)
+	v := Get(cfg, ck, key, nil, -1)
 	if v != value {
 		t.Fatalf("Get(%v): expected:\n%v\nreceived:\n%v", key, value, v)
 	}
@@ -151,7 +203,7 @@ func partitioner(t *testing.T, cfg *config, ch chan bool, done *int32) {
 // maxraftstate is a positive number, the size of the state for Raft (i.e., log
 // size) shouldn't exceed 8*maxraftstate. If maxraftstate is negative,
 // snapshots shouldn't be used.
-func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash bool, partitions bool, maxraftstate int) {
+func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliable bool, crash bool, partitions bool, maxraftstate int, randomkeys bool) {
 
 	title := "Test: "
 	if unreliable {
@@ -169,6 +221,9 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 	if maxraftstate != -1 {
 		title = title + "snapshots, "
 	}
+	if randomkeys {
+		title = title + "random keys, "
+	}
 	if nclients > 1 {
 		title = title + "many clients"
 	} else {
@@ -176,11 +231,11 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 	}
 	title = title + " (" + part + ")" // 3A or 3B
 
-	const nservers = 5
 	cfg := make_config(t, nservers, unreliable, maxraftstate)
 	defer cfg.cleanup()
 
 	cfg.begin(title)
+	opLog := &OpLog{}
 
 	ck := cfg.makeClient(cfg.All())
 
@@ -200,21 +255,36 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 			defer func() {
 				clnts[cli] <- j
 			}()
-			last := ""
-			key := strconv.Itoa(cli)
-			Put(cfg, myck, key, last)
+			last := "" // only used when not randomkeys
+			if !randomkeys {
+				Put(cfg, myck, strconv.Itoa(cli), last, opLog, cli)
+			}
 			for atomic.LoadInt32(&done_clients) == 0 {
+				var key string
+				if randomkeys {
+					key = strconv.Itoa(rand.Intn(nclients))
+				} else {
+					key = strconv.Itoa(cli)
+				}
+				nv := "x " + strconv.Itoa(cli) + " " + strconv.Itoa(j) + " y"
 				if (rand.Int() % 1000) < 500 {
-					nv := "x " + strconv.Itoa(cli) + " " + strconv.Itoa(j) + " y"
 					// log.Printf("%d: client new append %v\n", cli, nv)
-					Append(cfg, myck, key, nv)
-					last = NextValue(last, nv)
+					Append(cfg, myck, key, nv, opLog, cli)
+					if !randomkeys {
+						last = NextValue(last, nv)
+					}
+					j++
+				} else if randomkeys && (rand.Int()%1000) < 100 {
+					// we only do this when using random keys, because it would break the
+					// check done after Get() operations
+					Put(cfg, myck, key, nv, opLog, cli)
 					j++
 				} else {
 					// log.Printf("%d: client new get %v\n", cli, key)
-					v := Get(cfg, myck, key)
-					if v != last {
-						log.Fatalf("get wrong value, key %v, wanted:\n%v\n, got\n%v\n", key, last, v)
+					v := Get(cfg, myck, key, opLog, cli)
+					// the following check only makes sense when we're not using random keys
+					if !randomkeys && v != last {
+						t.Fatalf("get wrong value, key %v, wanted:\n%v\n, got\n%v\n", key, last, v)
 					}
 				}
 			}
@@ -267,8 +337,10 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 			// }
 			key := strconv.Itoa(i)
 			// log.Printf("Check %v for client %d\n", j, i)
-			v := Get(cfg, ck, key)
-			checkClntAppends(t, i, v, j)
+			v := Get(cfg, ck, key, opLog, 0)
+			if !randomkeys {
+				checkClntAppends(t, i, v, j)
+			}
 		}
 
 		if maxraftstate > 0 {
@@ -288,144 +360,7 @@ func GenericTest(t *testing.T, part string, nclients int, unreliable bool, crash
 		}
 	}
 
-	cfg.end()
-}
-
-// similar to GenericTest, but with clients doing random operations (and using a
-// linearizability checker)
-func GenericTestLinearizability(t *testing.T, part string, nclients int, nservers int, unreliable bool, crash bool, partitions bool, maxraftstate int) {
-
-	title := "Test: "
-	if unreliable {
-		// the network drops RPC requests and replies.
-		title = title + "unreliable net, "
-	}
-	if crash {
-		// peers re-start, and thus persistence must work.
-		title = title + "restarts, "
-	}
-	if partitions {
-		// the network may partition
-		title = title + "partitions, "
-	}
-	if maxraftstate != -1 {
-		title = title + "snapshots, "
-	}
-	if nclients > 1 {
-		title = title + "many clients"
-	} else {
-		title = title + "one client"
-	}
-	title = title + ", linearizability checks (" + part + ")" // 3A or 3B
-
-	cfg := make_config(t, nservers, unreliable, maxraftstate)
-	defer cfg.cleanup()
-
-	cfg.begin(title)
-
-	begin := time.Now()
-	var operations []porcupine.Operation
-	var opMu sync.Mutex
-
-	done_partitioner := int32(0)
-	done_clients := int32(0)
-	ch_partitioner := make(chan bool)
-	clnts := make([]chan int, nclients)
-	for i := 0; i < nclients; i++ {
-		clnts[i] = make(chan int)
-	}
-	for i := 0; i < 3; i++ {
-		// log.Printf("Iteration %v\n", i)
-		atomic.StoreInt32(&done_clients, 0)
-		atomic.StoreInt32(&done_partitioner, 0)
-		go spawn_clients_and_wait(t, cfg, nclients, func(cli int, myck *Clerk, t *testing.T) {
-			j := 0
-			defer func() {
-				clnts[cli] <- j
-			}()
-			for atomic.LoadInt32(&done_clients) == 0 {
-				key := strconv.Itoa(rand.Int() % nclients)
-				nv := "x " + strconv.Itoa(cli) + " " + strconv.Itoa(j) + " y"
-				var inp models.KvInput
-				var out models.KvOutput
-				start := int64(time.Since(begin))
-				if (rand.Int() % 1000) < 500 {
-					Append(cfg, myck, key, nv)
-					inp = models.KvInput{Op: 2, Key: key, Value: nv}
-					j++
-				} else if (rand.Int() % 1000) < 100 {
-					Put(cfg, myck, key, nv)
-					inp = models.KvInput{Op: 1, Key: key, Value: nv}
-					j++
-				} else {
-					v := Get(cfg, myck, key)
-					inp = models.KvInput{Op: 0, Key: key}
-					out = models.KvOutput{Value: v}
-				}
-				end := int64(time.Since(begin))
-				op := porcupine.Operation{Input: inp, Call: start, Output: out, Return: end, ClientId: cli}
-				opMu.Lock()
-				operations = append(operations, op)
-				opMu.Unlock()
-			}
-		})
-
-		if partitions {
-			// Allow the clients to perform some operations without interruption
-			time.Sleep(1 * time.Second)
-			go partitioner(t, cfg, ch_partitioner, &done_partitioner)
-		}
-		time.Sleep(5 * time.Second)
-
-		atomic.StoreInt32(&done_clients, 1)     // tell clients to quit
-		atomic.StoreInt32(&done_partitioner, 1) // tell partitioner to quit
-
-		if partitions {
-			// log.Printf("wait for partitioner\n")
-			<-ch_partitioner
-			// reconnect network and submit a request. A client may
-			// have submitted a request in a minority.  That request
-			// won't return until that server discovers a new term
-			// has started.
-			cfg.ConnectAll()
-			// wait for a while so that we have a new term
-			time.Sleep(electionTimeout)
-		}
-
-		if crash {
-			// log.Printf("shutdown servers\n")
-			for i := 0; i < nservers; i++ {
-				cfg.ShutdownServer(i)
-			}
-			// Wait for a while for servers to shutdown, since
-			// shutdown isn't a real crash and isn't instantaneous
-			time.Sleep(electionTimeout)
-			// log.Printf("restart servers\n")
-			// crash and re-start all
-			for i := 0; i < nservers; i++ {
-				cfg.StartServer(i)
-			}
-			cfg.ConnectAll()
-		}
-
-		// wait for clients.
-		for i := 0; i < nclients; i++ {
-			<-clnts[i]
-		}
-
-		if maxraftstate > 0 {
-			// Check maximum after the servers have processed all client
-			// requests and had time to checkpoint.
-			sz := cfg.LogSize()
-			if sz > 8*maxraftstate {
-				t.Fatalf("logs were not trimmed (%v > 8*%v)", sz, maxraftstate)
-			}
-		}
-	}
-
-	cfg.end()
-
-	res, info := porcupine.CheckOperationsVerbose(models.KvModel, operations, linearizabilityCheckTimeout)
+	res, info := porcupine.CheckOperationsVerbose(models.KvModel, opLog.Read(), linearizabilityCheckTimeout)
 	if res == porcupine.Illegal {
 		file, err := ioutil.TempFile("", "*.html")
 		if err != nil {
@@ -439,25 +374,65 @@ func GenericTestLinearizability(t *testing.T, part string, nclients int, nserver
 			}
 		}
 		t.Fatal("history is not linearizable")
-		t.Fatal("history is not linearizable")
 	} else if res == porcupine.Unknown {
 		fmt.Println("info: linearizability check timed out, assuming history is ok")
 	}
+
+	cfg.end()
+}
+
+// Check that ops are committed fast enough, better than 1 per heartbeat interval
+func GenericTestSpeed(t *testing.T, part string, maxraftstate int) {
+	const nservers = 3
+	const numOps = 1000
+	cfg := make_config(t, nservers, false, maxraftstate)
+	defer cfg.cleanup()
+
+	ck := cfg.makeClient(cfg.All())
+
+	cfg.begin(fmt.Sprintf("Test: ops complete fast enough (%s)", part))
+
+	// wait until first op completes, so we know a leader is elected
+	// and KV servers are ready to process client requests
+	ck.Get("x")
+
+	start := time.Now()
+	for i := 0; i < numOps; i++ {
+		ck.Append("x", "x 0 "+strconv.Itoa(i)+" y")
+	}
+	dur := time.Since(start)
+
+	v := ck.Get("x")
+	checkClntAppends(t, 0, v, numOps)
+
+	// heartbeat interval should be ~ 100 ms; require at least 3 ops per
+	const heartbeatInterval = 100 * time.Millisecond
+	const opsPerInterval = 3
+	const timePerOp = heartbeatInterval / opsPerInterval
+	if dur > numOps*timePerOp {
+		t.Fatalf("Operations completed too slowly %v/op > %v/op\n", dur/numOps, timePerOp)
+	}
+
+	cfg.end()
 }
 
 func TestBasic3A(t *testing.T) {
 	// Test: one client (3A) ...
-	GenericTest(t, "3A", 1, false, false, false, -1)
+	GenericTest(t, "3A", 1, 5, false, false, false, -1, false)
+}
+
+func TestSpeed3A(t *testing.T) {
+	GenericTestSpeed(t, "3A", -1)
 }
 
 func TestConcurrent3A(t *testing.T) {
 	// Test: many clients (3A) ...
-	GenericTest(t, "3A", 5, false, false, false, -1)
+	GenericTest(t, "3A", 5, 5, false, false, false, -1, false)
 }
 
 func TestUnreliable3A(t *testing.T) {
 	// Test: unreliable net, many clients (3A) ...
-	GenericTest(t, "3A", 5, true, false, false, -1)
+	GenericTest(t, "3A", 5, 5, true, false, false, -1, false)
 }
 
 func TestUnreliableOneKey3A(t *testing.T) {
@@ -469,14 +444,14 @@ func TestUnreliableOneKey3A(t *testing.T) {
 
 	cfg.begin("Test: concurrent append to same key, unreliable (3A)")
 
-	Put(cfg, ck, "k", "")
+	Put(cfg, ck, "k", "", nil, -1)
 
 	const nclient = 5
 	const upto = 10
 	spawn_clients_and_wait(t, cfg, nclient, func(me int, myck *Clerk, t *testing.T) {
 		n := 0
 		for n < upto {
-			Append(cfg, myck, "k", "x "+strconv.Itoa(me)+" "+strconv.Itoa(n)+" y")
+			Append(cfg, myck, "k", "x "+strconv.Itoa(me)+" "+strconv.Itoa(n)+" y", nil, -1)
 			n++
 		}
 	})
@@ -486,7 +461,7 @@ func TestUnreliableOneKey3A(t *testing.T) {
 		counts = append(counts, upto)
 	}
 
-	vx := Get(cfg, ck, "k")
+	vx := Get(cfg, ck, "k", nil, -1)
 	checkConcurrentAppends(t, vx, counts)
 
 	cfg.end()
@@ -501,7 +476,7 @@ func TestOnePartition3A(t *testing.T) {
 	defer cfg.cleanup()
 	ck := cfg.makeClient(cfg.All())
 
-	Put(cfg, ck, "1", "13")
+	Put(cfg, ck, "1", "13", nil, -1)
 
 	cfg.begin("Test: progress in majority (3A)")
 
@@ -512,7 +487,7 @@ func TestOnePartition3A(t *testing.T) {
 	ckp2a := cfg.makeClient(p2) // connect ckp2a to p2
 	ckp2b := cfg.makeClient(p2) // connect ckp2b to p2
 
-	Put(cfg, ckp1, "1", "14")
+	Put(cfg, ckp1, "1", "14", nil, -1)
 	check(cfg, t, ckp1, "1", "14")
 
 	cfg.end()
@@ -522,11 +497,11 @@ func TestOnePartition3A(t *testing.T) {
 
 	cfg.begin("Test: no progress in minority (3A)")
 	go func() {
-		Put(cfg, ckp2a, "1", "15")
+		Put(cfg, ckp2a, "1", "15", nil, -1)
 		done0 <- true
 	}()
 	go func() {
-		Get(cfg, ckp2b, "1") // different clerk in p2
+		Get(cfg, ckp2b, "1", nil, -1) // different clerk in p2
 		done1 <- true
 	}()
 
@@ -539,7 +514,7 @@ func TestOnePartition3A(t *testing.T) {
 	}
 
 	check(cfg, t, ckp1, "1", "14")
-	Put(cfg, ckp1, "1", "16")
+	Put(cfg, ckp1, "1", "16", nil, -1)
 	check(cfg, t, ckp1, "1", "16")
 
 	cfg.end()
@@ -572,42 +547,42 @@ func TestOnePartition3A(t *testing.T) {
 
 func TestManyPartitionsOneClient3A(t *testing.T) {
 	// Test: partitions, one client (3A) ...
-	GenericTest(t, "3A", 1, false, false, true, -1)
+	GenericTest(t, "3A", 1, 5, false, false, true, -1, false)
 }
 
 func TestManyPartitionsManyClients3A(t *testing.T) {
 	// Test: partitions, many clients (3A) ...
-	GenericTest(t, "3A", 5, false, false, true, -1)
+	GenericTest(t, "3A", 5, 5, false, false, true, -1, false)
 }
 
 func TestPersistOneClient3A(t *testing.T) {
 	// Test: restarts, one client (3A) ...
-	GenericTest(t, "3A", 1, false, true, false, -1)
+	GenericTest(t, "3A", 1, 5, false, true, false, -1, false)
 }
 
 func TestPersistConcurrent3A(t *testing.T) {
 	// Test: restarts, many clients (3A) ...
-	GenericTest(t, "3A", 5, false, true, false, -1)
+	GenericTest(t, "3A", 5, 5, false, true, false, -1, false)
 }
 
 func TestPersistConcurrentUnreliable3A(t *testing.T) {
 	// Test: unreliable net, restarts, many clients (3A) ...
-	GenericTest(t, "3A", 5, true, true, false, -1)
+	GenericTest(t, "3A", 5, 5, true, true, false, -1, false)
 }
 
 func TestPersistPartition3A(t *testing.T) {
 	// Test: restarts, partitions, many clients (3A) ...
-	GenericTest(t, "3A", 5, false, true, true, -1)
+	GenericTest(t, "3A", 5, 5, false, true, true, -1, false)
 }
 
 func TestPersistPartitionUnreliable3A(t *testing.T) {
 	// Test: unreliable net, restarts, partitions, many clients (3A) ...
-	GenericTest(t, "3A", 5, true, true, true, -1)
+	GenericTest(t, "3A", 5, 5, true, true, true, -1, false)
 }
 
 func TestPersistPartitionUnreliableLinearizable3A(t *testing.T) {
-	// Test: unreliable net, restarts, partitions, linearizability checks (3A) ...
-	GenericTestLinearizability(t, "3A", 15, 7, true, true, true, -1)
+	// Test: unreliable net, restarts, partitions, random keys, many clients (3A) ...
+	GenericTest(t, "3A", 15, 7, true, true, true, -1, true)
 }
 
 //
@@ -626,7 +601,7 @@ func TestSnapshotRPC3B(t *testing.T) {
 
 	cfg.begin("Test: InstallSnapshot RPC (3B)")
 
-	Put(cfg, ck, "a", "A")
+	Put(cfg, ck, "a", "A", nil, -1)
 	check(cfg, t, ck, "a", "A")
 
 	// a bunch of puts into the majority partition.
@@ -634,10 +609,10 @@ func TestSnapshotRPC3B(t *testing.T) {
 	{
 		ck1 := cfg.makeClient([]int{0, 1})
 		for i := 0; i < 50; i++ {
-			Put(cfg, ck1, strconv.Itoa(i), strconv.Itoa(i))
+			Put(cfg, ck1, strconv.Itoa(i), strconv.Itoa(i), nil, -1)
 		}
 		time.Sleep(electionTimeout)
-		Put(cfg, ck1, "b", "B")
+		Put(cfg, ck1, "b", "B", nil, -1)
 	}
 
 	// check that the majority partition has thrown away
@@ -652,8 +627,8 @@ func TestSnapshotRPC3B(t *testing.T) {
 	cfg.partition([]int{0, 2}, []int{1})
 	{
 		ck1 := cfg.makeClient([]int{0, 2})
-		Put(cfg, ck1, "c", "C")
-		Put(cfg, ck1, "d", "D")
+		Put(cfg, ck1, "c", "C", nil, -1)
+		Put(cfg, ck1, "d", "D", nil, -1)
 		check(cfg, t, ck1, "a", "A")
 		check(cfg, t, ck1, "b", "B")
 		check(cfg, t, ck1, "1", "1")
@@ -663,7 +638,7 @@ func TestSnapshotRPC3B(t *testing.T) {
 	// now everybody
 	cfg.partition([]int{0, 1, 2}, []int{})
 
-	Put(cfg, ck, "e", "E")
+	Put(cfg, ck, "e", "E", nil, -1)
 	check(cfg, t, ck, "c", "C")
 	check(cfg, t, ck, "e", "E")
 	check(cfg, t, ck, "1", "1")
@@ -685,9 +660,9 @@ func TestSnapshotSize3B(t *testing.T) {
 	cfg.begin("Test: snapshot size is reasonable (3B)")
 
 	for i := 0; i < 200; i++ {
-		Put(cfg, ck, "x", "0")
+		Put(cfg, ck, "x", "0", nil, -1)
 		check(cfg, t, ck, "x", "0")
-		Put(cfg, ck, "x", "1")
+		Put(cfg, ck, "x", "1", nil, -1)
 		check(cfg, t, ck, "x", "1")
 	}
 
@@ -706,32 +681,36 @@ func TestSnapshotSize3B(t *testing.T) {
 	cfg.end()
 }
 
+func TestSpeed3B(t *testing.T) {
+	GenericTestSpeed(t, "3B", 1000)
+}
+
 func TestSnapshotRecover3B(t *testing.T) {
 	// Test: restarts, snapshots, one client (3B) ...
-	GenericTest(t, "3B", 1, false, true, false, 1000)
+	GenericTest(t, "3B", 1, 5, false, true, false, 1000, false)
 }
 
 func TestSnapshotRecoverManyClients3B(t *testing.T) {
 	// Test: restarts, snapshots, many clients (3B) ...
-	GenericTest(t, "3B", 20, false, true, false, 1000)
+	GenericTest(t, "3B", 20, 5, false, true, false, 1000, false)
 }
 
 func TestSnapshotUnreliable3B(t *testing.T) {
 	// Test: unreliable net, snapshots, many clients (3B) ...
-	GenericTest(t, "3B", 5, true, false, false, 1000)
+	GenericTest(t, "3B", 5, 5, true, false, false, 1000, false)
 }
 
 func TestSnapshotUnreliableRecover3B(t *testing.T) {
 	// Test: unreliable net, restarts, snapshots, many clients (3B) ...
-	GenericTest(t, "3B", 5, true, true, false, 1000)
+	GenericTest(t, "3B", 5, 5, true, true, false, 1000, false)
 }
 
 func TestSnapshotUnreliableRecoverConcurrentPartition3B(t *testing.T) {
 	// Test: unreliable net, restarts, partitions, snapshots, many clients (3B) ...
-	GenericTest(t, "3B", 5, true, true, true, 1000)
+	GenericTest(t, "3B", 5, 5, true, true, true, 1000, false)
 }
 
 func TestSnapshotUnreliableRecoverConcurrentPartitionLinearizable3B(t *testing.T) {
-	// Test: unreliable net, restarts, partitions, snapshots, linearizability checks (3B) ...
-	GenericTestLinearizability(t, "3B", 15, 7, true, true, true, 1000)
+	// Test: unreliable net, restarts, partitions, snapshots, random keys, many clients (3B) ...
+	GenericTest(t, "3B", 15, 7, true, true, true, 1000, true)
 }

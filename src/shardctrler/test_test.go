@@ -1,4 +1,4 @@
-package shardmaster
+package shardctrler
 
 import (
 	"sync"

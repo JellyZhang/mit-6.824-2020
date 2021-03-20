@@ -1,7 +1,7 @@
-package shardmaster
+package shardctrler
 
-import "../labrpc"
-import "../raft"
+import "6.824/labrpc"
+import "6.824/raft"
 import "testing"
 import "os"
 
@@ -36,7 +36,7 @@ type config struct {
 	t            *testing.T
 	net          *labrpc.Network
 	n            int
-	servers      []*ShardMaster
+	servers      []*ShardCtrler
 	saved        []*raft.Persister
 	endnames     [][]string // names of each server's sending ClientEnds
 	clerks       map[*Clerk][]string
@@ -335,7 +335,7 @@ func make_config(t *testing.T, n int, unreliable bool) *config {
 	cfg.t = t
 	cfg.net = labrpc.MakeNetwork()
 	cfg.n = n
-	cfg.servers = make([]*ShardMaster, cfg.n)
+	cfg.servers = make([]*ShardCtrler, cfg.n)
 	cfg.saved = make([]*raft.Persister, cfg.n)
 	cfg.endnames = make([][]string, cfg.n)
 	cfg.clerks = make(map[*Clerk][]string)
