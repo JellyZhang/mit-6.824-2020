@@ -2,7 +2,9 @@
 
 Go implements of mit-6.824 labs.
 
-- [x] Lab1
+[toc]
+
+
 
 
 
@@ -42,4 +44,26 @@ docker run -v $PWD:/go/src/6.824  golang:1.15-stretch /bin/bash -c 'cd /go/src/6
    - use sync.Mutex to lock when coordinator access all tasks.
    - Put a task back to taskQueue if its worker dont response in 10 seconds.
    
-   
+
+
+
+## Lab2A
+
+### Run
+
+```shell
+git clone https://github.com/JellyZhang/mit-6.824-2020.git
+cd mit-6.824-2020
+docker run -v $PWD:/go/src/6.824  golang:1.15-stretch /bin/bash -c 'cd /go/src/6.824/src/raft && go test -race -run 2A'
+```
+
+
+
+### Pic
+
+
+
+
+
+### Comments
+
