@@ -181,8 +181,8 @@ type RequestVoteReply struct {
 // example RequestVote RPC handler.
 //
 
-func getRandom() int64 {
-	return int64(rand.Intn(300) + 150)
+func getElectionTimeout() time.Duration {
+	return time.Duration(rand.Intn(300) + 150)
 }
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Your code here (2A, 2B).
@@ -202,7 +202,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 			rf.votedFor = args.CandidateId
 			rf.term = args.Term
 			reply.VoteGranted = true
-			rf.lastHeartbeat = time.Now().UnixNano()/1e6 + getRandom()
+			rf.lastHeartbeat = time.Now().UnixNano() / 1e6
 			return
 		} else {
 			DPrintf("[RequestVote] %v this term has voted to %v", rf.me, rf.votedFor)
@@ -215,7 +215,7 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		rf.term = args.Term
 		rf.votedFor = args.CandidateId
 		reply.VoteGranted = true
-		rf.lastHeartbeat = time.Now().UnixNano()/1e6 + getRandom()
+		rf.lastHeartbeat = time.Now().UnixNano() / 1e6
 		return
 	}
 	DPrintf("[RequestVote] %v end, dont give out vote. rf.votedFor=%v", rf.me, rf.votedFor)
@@ -227,6 +227,7 @@ type Entry struct {
 	Key   string
 	Value string
 }
+
 type AppendEntriesArgs struct {
 	Term         int
 	LeaderId     int
@@ -252,7 +253,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	} else if args.Term >= rf.term {
 		reply.Success = true
 		rf.role = Follower
-		rf.lastHeartbeat = time.Now().UnixNano()/1e6 + getRandom()
+		rf.lastHeartbeat = time.Now().UnixNano() / 1e6
 		rf.leaderIndex = args.LeaderId
 		DPrintf("[AppendEntries] %v set leaderIndex=%v ", rf.me, args.LeaderId)
 		return
@@ -367,7 +368,7 @@ func (rf *Raft) sendHeartbeat(server int, term int) {
 	} else if reply.Success == false && reply.Term > rf.term {
 		rf.term = reply.Term
 		rf.role = Follower
-		DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get degrade", rf.me, server)
+		DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get a newer term, term=%v", rf.me, server, rf.term)
 	}
 	rf.mu.Unlock()
 
@@ -385,7 +386,7 @@ func (rf *Raft) leaderTicker() {
 		rf.mu.Unlock()
 		if r == Leader {
 			DPrintf("[leaderTicker] %v send heartsbeats", rf.me)
-			for i, _ := range rf.peers {
+			for i := range rf.peers {
 				if i == rf.me {
 					continue
 				}
@@ -394,29 +395,29 @@ func (rf *Raft) leaderTicker() {
 		}
 	}
 }
-func (rf *Raft) ticker() {
+func (rf *Raft) electionTicker() {
 	for rf.killed() == false {
 		rf.mu.Lock()
-		before := atomic.LoadInt64(&rf.lastHeartbeat)
+		before := rf.lastHeartbeat
 		rf.mu.Unlock()
-		time.Sleep(time.Duration(getRandom()) * time.Millisecond)
+		time.Sleep(getElectionTimeout() * time.Millisecond)
 		rf.mu.Lock()
-		after := atomic.LoadInt64(&rf.lastHeartbeat)
-		r := rf.role
-		limit := rf.lastHeartbeat
-		now := time.Now().UnixNano() / 1e6
+		after := rf.lastHeartbeat
+		role := rf.role
 		rf.mu.Unlock()
-		DPrintf("[ticker] check election timeout, me=%v", rf.me)
-		if before == after && r != Leader {
-			DPrintf("[ticker] start election, me=%v", rf.me)
+		DPrintf("[electionTicker] check election timeout, me=%v", rf.me)
+
+		// if this node dont get leader's heartsbeats during sleep, then start election
+		if before == after && role != Leader {
+			DPrintf("[electionTicker] start election, me=%v", rf.me)
 			go rf.startElection()
 		} else {
-			DPrintf("[ticker] dont start election, me=%v, now=%v, limit=%v, r=%v", rf.me, now, limit, r)
+			DPrintf("[electionTicker] dont start election, me=%v, before=%v, after=%v, r=%v", rf.me, before, after, role)
 		}
 	}
 }
 
-func (rf *Raft) requestVote(server int, term int, c *sync.Cond, wg *sync.WaitGroup) {
+func (rf *Raft) requestVote(server int, term int, c *sync.Cond) {
 	args := &RequestVoteArgs{
 		Term:         term,
 		CandidateId:  rf.me,
@@ -428,19 +429,19 @@ func (rf *Raft) requestVote(server int, term int, c *sync.Cond, wg *sync.WaitGro
 	ok := rf.sendRequestVote(server, args, reply)
 	rf.mu.Lock()
 	if !ok {
-		DPrintf("[ticker] %v send requestVote to %v, rpc error", rf.me, server)
+		DPrintf("[requestVote] %v send requestVote to %v, rpc error", rf.me, server)
 	} else if reply.Term > rf.term {
 		rf.term = reply.Term
-		DPrintf("[ticker] %v term update during requestVote from %v, now term=%v", rf.me, server, rf.term)
+		DPrintf("[requestVote] %v term update during requestVote from %v, now term=%v", rf.me, server, rf.term)
 		c.Signal()
 	} else if reply.VoteGranted {
 		rf.getVotedTickets++
 		if rf.getVotedTickets >= rf.getMajority() {
 			c.Signal()
 		}
-		DPrintf("[ticker] %v get vote from %v, now have %v", rf.me, server, rf.getVotedTickets)
+		DPrintf("[requestVote] %v get vote from %v, now have %v", rf.me, server, rf.getVotedTickets)
 	} else {
-		DPrintf("[ticker] %v error, term=%v, votegranted=%v", rf.me, reply.Term, reply.VoteGranted)
+		DPrintf("[requestVote] %v error, term=%v, votegranted=%v", rf.me, reply.Term, reply.VoteGranted)
 	}
 	rf.mu.Unlock()
 }
@@ -454,31 +455,30 @@ func (rf *Raft) startElection() {
 	startTerm := rf.term
 	rf.votedFor = rf.me
 	rf.getVotedTickets = 1
-	wg := &sync.WaitGroup{}
 	m := sync.Mutex{}
 	c := sync.NewCond(&m)
 	c.L.Lock()
-	for i, _ := range rf.peers {
+	for i := range rf.peers {
 		if i == rf.me {
 			continue
 		}
-		wg.Add(1)
-		go rf.requestVote(i, startTerm, c, wg)
+		go rf.requestVote(i, startTerm, c)
 	}
 	rf.mu.Unlock()
 
+	// be wake up when term changed or votes are enough
 	c.Wait()
 	rf.mu.Lock()
 	if rf.term > startTerm {
-		DPrintf("[ticker] %v term update during requestVote2 now term=%v", rf.me, rf.term)
+		DPrintf("[startElection] %v term update during requestVote2 now term=%v", rf.me, rf.term)
 		rf.role = Follower
 	} else if rf.getVotedTickets >= rf.getMajority() {
-		DPrintf("[ticker] me=%v is leader now", rf.me)
+		DPrintf("[startElection] me=%v is leader now", rf.me)
 		rf.leaderIndex = rf.me
 		rf.role = Leader
 	} else {
 		rf.role = Follower
-		DPrintf("[ticker] me=%v, votes=%v, cant be leader", rf.me, rf.getVotedTickets)
+		DPrintf("[startElection] me=%v, votes=%v, cant be leader", rf.me, rf.getVotedTickets)
 	}
 	c.L.Unlock()
 	rf.mu.Unlock()
@@ -503,7 +503,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.me = me
 
 	// Your initialization code here (2A, 2B, 2C).
-	rf.lastHeartbeat = time.Now().UnixNano()/1e6 + getRandom()
+	rf.lastHeartbeat = time.Now().UnixNano() / 1e6
 	rf.votedFor = -1
 	rf.leaderIndex = -1
 	rf.role = Follower
@@ -512,7 +512,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.readPersist(persister.ReadRaftState())
 
 	// start ticker goroutine to start elections
-	go rf.ticker()
+	go rf.electionTicker()
 	go rf.leaderTicker()
 
 	return rf

@@ -15,10 +15,10 @@ Go implements of mit-6.824 labs.
 ```bash
 git clone https://github.com/JellyZhang/mit-6.824-2020.git
 cd mit-6.824-2020
-docker run -v $PWD:/go/src/6.824  golang:1.15-stretch /bin/bash -c 'cd /go/src/6.824/src/main && bash /go/src/6.824/src/main/test-mr.sh'
+docker run -v $PWD:/6.824 -w /6.824/src/main  golang:1.15-stretch bash ./test-mr.sh
 
 // or you can test many times with:
-// docker run -v $PWD:/go/src/6.824  golang:1.15-stretch /bin/bash -c 'cd /go/src/6.824/src/main && bash /go/src/6.824/src/main/test-mr-many.sh 3'
+// docker run -v $PWD:/6.824 -w /6.824/src/main  golang:1.15-stretch bash ./test-mr-many.sh 3
 ```
 
 ### Pic
@@ -54,16 +54,28 @@ docker run -v $PWD:/go/src/6.824  golang:1.15-stretch /bin/bash -c 'cd /go/src/6
 ```shell
 git clone https://github.com/JellyZhang/mit-6.824-2020.git
 cd mit-6.824-2020
-docker run -v $PWD:/go/src/6.824  golang:1.15-stretch /bin/bash -c 'cd /go/src/6.824/src/raft && go test -race -run 2A'
+docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2A
 ```
 
 
 
 ### Pic
 
-
-
-
+![image-20210324161759605](https://tva1.sinaimg.cn/large/008eGmZEly1gov2gjt50ej327u0fqn0y.jpg)
 
 ### Comments
 
+- There are two important tickers:
+  - election ticker: decide whether to start an election or not. (Follower or Candidate)
+    - get node's last timestamp of receving leader's heartbeat.
+    - sleep for a random time.(election timeout). (according to guide, it should be greater than 150~300ms).
+    - get node's last timestamp of receving leader's heartbeat again, check if it has changed.
+    - if two timestamps are same, which means there is no heartbeat during sleeping, then start an election.
+  - Leader ticker: send heartbeats to Followers and Candidates periodically.
+    - accoding to guide, heartbeats duration should be greater than 100ms.
+
+- Some tips:
+  - Use goroutines to start RequestVote RPC call and AppendEnties RPC call makes code easy debugging.
+  - When gathering votes, we can use sync.Cond to wait for enough votes. 
+  - Use mutex to lock when reading or writing.
+  - It is Important to record a copy of node's original situation before sleeping, because term/role may change during sleep.
