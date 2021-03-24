@@ -2,7 +2,20 @@
 
 Go implements of mit-6.824 labs.
 
-[toc]
+
+
+Table of Contents
+=================
+
+   * [mit-6.824-2020](#mit-6824-2020)
+      * [Lab1](#lab1)
+         * [Run](#run)
+         * [Pic](#pic)
+         * [Comments](#comments)
+      * [Lab2A](#lab2a)
+         * [Run](#run-1)
+         * [Pic](#pic-1)
+         * [Comments](#comments-1)
 
 
 
@@ -61,7 +74,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 
 ### Pic
 
-![image-20210324161759605](https://tva1.sinaimg.cn/large/008eGmZEly1gov2gjt50ej327u0fqn0y.jpg)
+![image-20210324214432091](https://tva1.sinaimg.cn/large/008eGmZEly1govbw2sog4j32780fkh1t.jpg)
 
 ### Comments
 
@@ -79,3 +92,4 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
   - When gathering votes, we can use sync.Cond to wait for enough votes. 
   - Use mutex to lock when reading or writing.
   - It is Important to record a copy of node's original situation before sleeping, because term/role may change during sleep.
+
