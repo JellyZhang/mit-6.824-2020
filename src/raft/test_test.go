@@ -196,7 +196,9 @@ func TestFailAgree2B(t *testing.T) {
 	// able to agree despite the disconnected follower.
 	cfg.one(102, servers-1, false)
 	cfg.one(103, servers-1, false)
+	DPrintf("[======] sleep")
 	time.Sleep(RaftElectionTimeout)
+	DPrintf("[======] sleep done")
 	cfg.one(104, servers-1, false)
 	cfg.one(105, servers-1, false)
 
