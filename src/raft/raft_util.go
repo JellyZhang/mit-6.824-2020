@@ -40,15 +40,13 @@ func (rf *Raft) getLastLogTerm() int {
 	return rf.logs[rf.getLastLogIndex()].Term
 }
 
-// initialization some variables when rf become a candidate of a new term
-func (rf *Raft) candidateInitialization() {
-
-}
-
 // initialization some variables when rf become a leader
 func (rf *Raft) leaderInitialization() {
 	rf.nextIndex = make([]int, len(rf.peers))
 	rf.matchIndex = make([]int, len(rf.peers))
+	for server := range rf.nextIndex {
+		rf.nextIndex[server] = rf.getLastLogIndex() + 1
+	}
 }
 
 func (rf *Raft) appendLog(entry *Entry) {

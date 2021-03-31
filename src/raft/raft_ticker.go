@@ -40,7 +40,10 @@ func (rf *Raft) electionTicker() {
 		rf.mu.Lock()
 		before := rf.lastHeartbeat
 		rf.mu.Unlock()
+
+		// sleep for a while and check if we received leader's heartsbeats during our sleep
 		time.Sleep(getElectionTimeout() * time.Millisecond)
+
 		rf.mu.Lock()
 		after := rf.lastHeartbeat
 		role := rf.role

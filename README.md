@@ -78,6 +78,8 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 
 ### Comments
 
+- [raft Visualizations](http://thesecretlivesofdata.com/raft/)
+
 - There are two important tickers:
   - election ticker: decide whether to start an election or not. (Follower or Candidate)
     - get node's last timestamp of receving leader's heartbeat.
@@ -93,3 +95,38 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
   - Use mutex to lock when reading or writing.
   - It is Important to record a copy of node's original situation before sleeping, because term/role may change during sleep.
 
+
+
+## Lab2B
+
+### Run
+
+```shell
+git clone https://github.com/JellyZhang/mit-6.824-2020.git
+cd mit-6.824-2020
+docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2B
+```
+
+### Pic
+
+![image-20210331223739999](https://tva1.sinaimg.cn/large/008eGmZEly1gp3grjmhxsj30rr0fidj7.jpg)
+
+
+
+### Comments
+
+- Lab2B is more difficult than Lab1 and Lab2A, better read the paper and watch some instruments first.
+  - [raft paper](http://nil.csail.mit.edu/6.824/2020/papers/raft-extended.pdf)
+
+- some important tips:
+  - **Figure 2 is very very important, you can basically just copy every variable name and find out every code logic  from it. Once you implement Figure 2, you have done Lab2B**
+  - Basic Process:
+    1. Leader append logs to Followers.
+    2. Leader find out that one LogEntry (assume index=`X` ) have appended in majority of the cluster.
+    3. Leader increase his commitIndex to `X`, and apply commands before `X` by applyChannel.
+    4. Leader tell Followers that commitIndex is `X` now in next AppendEntries RpcCall.
+    5. Follower find out that LeaderCommitIndex has increased, set his commitIndex to `X`, and apply commands before `X`
+  - Follower only give vote to Candidate if his log is more up-to-date. You should read the 5.4.1 to find out how to define "up-to-date".
+  - Follower only append logs if leader's *prevLogIndex* and *prevLogTerm* match Follower's.
+  - ApplyChannal is used for one node to apply command to tester when *commitIndex* increases.
+  - If you finished Lab2B but find out it takes about 60s to finish TestBackUp2B, you should optimize the way you decrease nextIndex[i]. see more in the quoted section in raft paper 5.3.

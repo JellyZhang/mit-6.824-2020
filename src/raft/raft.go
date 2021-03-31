@@ -20,10 +20,12 @@ package raft
 import (
 	//	"bytes"
 
+	"bytes"
 	"sync/atomic"
 
 	//	"6.824/labgob"
 
+	"6.824/labgob"
 	"6.824/labrpc"
 )
 
@@ -57,12 +59,12 @@ func (rf *Raft) persist() {
 	// e.Encode(rf.yyy)
 	// data := w.Bytes()
 	// rf.persister.SaveRaftState(data)
-	//w := new(bytes.Buffer)
-	//e := labgob.NewEncoder(w)
-	//e.Encode(rf.xxx)
-	//e.Encode(rf.yyy)
-	//data := w.Bytes()
-	//rf.persister.SaveRaftState(data)
+	w := new(bytes.Buffer)
+	e := labgob.NewEncoder(w)
+	e.Encode(rf.me)
+	data := w.Bytes()
+	DPrintf("[persist] data=%v", data)
+	rf.persister.SaveRaftState(data)
 
 }
 
@@ -86,6 +88,14 @@ func (rf *Raft) readPersist(data []byte) {
 	//   rf.xxx = xxx
 	//   rf.yyy = yyy
 	// }
+	r := bytes.NewBuffer(data)
+	d := labgob.NewDecoder(r)
+	var me int
+	if d.Decode(&me) != nil {
+		DPrintf("[readPersist] error, me=%v", me)
+	} else {
+		rf.me = me
+	}
 }
 
 //
