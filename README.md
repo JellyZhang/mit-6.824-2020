@@ -7,20 +7,20 @@ Go implements of mit-6.824 labs.
 Table of Contents
 =================
 
- * [mit-6.824-2020](/data/README.md#mit-6824-2020)
-   * [Table of Contents](/data/README.md#table-of-contents)
-      * [Lab1](/data/README.md#lab1)
-         * [Run](/data/README.md#run)
-         * [Pic](/data/README.md#pic)
-         * [Comments](/data/README.md#comments)
-      * [Lab2A](/data/README.md#lab2a)
-         * [Run](/data/README.md#run-1)
-         * [Pic](/data/README.md#pic-1)
-         * [Comments](/data/README.md#comments-1)
-      * [Lab2B](/data/README.md#lab2b)
-         * [Run](/data/README.md#run-2)
-         * [Pic](/data/README.md#pic-2)
-         * [Comments](/data/README.md#comments-2)
+* [mit-6.824-2020](#mit-6824-2020)
+   * [Table of Contents](#table-of-contents)
+      * [Lab1](#lab1)
+         * [Run](#run)
+         * [Pic](#pic)
+         * [Comments](#comments)
+      * [Lab2A](#lab2a)
+         * [Run](#run-1)
+         * [Pic](#pic-1)
+         * [Comments](#comments-1)
+      * [Lab2B](#lab2b)
+         * [Run](#run-2)
+         * [Pic](#pic-2)
+         * [Comments](#comments-2)
 
 
 
