@@ -2,7 +2,6 @@ package raft
 
 // leader send AppendEntries to one follower, and try to update commitIndex
 func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevLogTerm int, entries []*Entry, leaderCommitIndex int) {
-	DPrintf("[sendHeartbeat] %v send heartsbeats to %v", rf.me, server)
 	args := &AppendEntriesArgs{
 		Term:              startTerm,
 		LeaderId:          rf.me,
@@ -21,6 +20,7 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
+	// term changed after we rehold the lock.
 	if startTerm != rf.CurrentTerm {
 		return
 	}
@@ -45,8 +45,9 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	rf.persist()
 
 	// check if we can update commitIndex to newCommitIndex
+	oldCommit := rf.CommitIndex
 	newCommitIndex := rf.MatchIndex[server]
-	if newCommitIndex <= rf.CommitIndex || rf.Logs[newCommitIndex].Term != rf.CurrentTerm {
+	if newCommitIndex <= oldCommit || rf.Logs[newCommitIndex].Term != rf.CurrentTerm {
 		// already commited before.
 		return
 	}
@@ -61,10 +62,9 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 			cnt++
 		}
 	}
-	DPrintf("[sendHeartbeat] %v try set commitIndex to %v, cnt=%v", rf.me, newCommitIndex, cnt)
-	oldCommit := rf.CommitIndex
 
-	// if majority of cluster (including leader himself) has received logs of at least logs[newCommitIndex]
+	DPrintf("[sendHeartbeat] %v try set commitIndex to %v, cnt=%v", rf.me, newCommitIndex, cnt)
+	// check if majority of cluster (including leader himself) has received logs of at least logs[newCommitIndex]
 	if cnt+1 >= rf.getMajority() {
 		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.CommitIndex)
 		for i := oldCommit + 1; i <= newCommitIndex; i++ {

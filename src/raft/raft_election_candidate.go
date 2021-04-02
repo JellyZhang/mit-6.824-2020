@@ -3,6 +3,9 @@ package raft
 // Candidate starts Election
 func (rf *Raft) startElection(startTerm int) {
 	rf.mu.Lock()
+	defer rf.mu.Unlock()
+
+	// state changed after we rehold lock.
 	if rf.CurrentTerm != startTerm || rf.Role != Candidate {
 		return
 	}
@@ -20,7 +23,6 @@ func (rf *Raft) startElection(startTerm int) {
 		}
 		go rf.askForVote(server, startTerm, lastLogIndex, lastLogTerm)
 	}
-	rf.mu.Unlock()
 }
 
 // Candidate send request to Follower for tickets
@@ -43,7 +45,7 @@ func (rf *Raft) askForVote(server int, startTerm int, lastLogIndex int, lastLogT
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
-	// reply too old
+	// state changed after we rehold the lock.
 	if startTerm < rf.CurrentTerm || rf.Role != Candidate {
 		DPrintf("[askForVote] too old information, startTerm=%v, currentTerm=%v, role=%v", startTerm, rf.CurrentTerm, rf.Role)
 		return

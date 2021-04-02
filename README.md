@@ -4,20 +4,24 @@ Go implements of mit-6.824 labs.
 
 # Table of Contents
 
-- [mit-6.824-2021](#mit-6824-2021)
-  - [Table of Contents](#table-of-contents)
-    - [Lab1](#lab1)
-      - [Run](#run)
-      - [Pic](#pic)
-      - [Comments](#comments)
-    - [Lab2A](#lab2a)
-      - [Run](#run-1)
-      - [Pic](#pic-1)
-      - [Comments](#comments-1)
-    - [Lab2B](#lab2b)
-      - [Run](#run-2)
-      - [Pic](#pic-2)
-      - [Comments](#comments-2)
+* [mit-6.824-2021](#mit-6824-2021)
+   * [Table of Contents](#table-of-contents)
+      * [Lab1](#lab1)
+         * [Run](#run)
+         * [Pic](#pic)
+         * [Comments](#comments)
+      * [Lab2A](#lab2a)
+         * [Run](#run-1)
+         * [Pic](#pic-1)
+         * [Comments](#comments-1)
+      * [Lab2B](#lab2b)
+         * [Run](#run-2)
+         * [Pic](#pic-2)
+         * [Comments](#comments-2)
+      * [Lab2C](#lab2c)
+         * [Run](#run-3)
+         * [Pic](#pic-3)
+         * [Comments](#comments-3)
 
 ## Lab1
 

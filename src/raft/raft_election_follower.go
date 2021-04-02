@@ -43,8 +43,8 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 		DPrintf("[RequestVote] %v cant give vote to %v because he is too old, myEntries=%+v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.Logs, args.LastLogIndex, args.LastLogTerm)
 		reply.VoteGranted = false
 	} else if rf.VotedFor == args.CandidateId || rf.VotedFor == -1 {
-		// Follower have voted to him or havenot voted before, then give out tickect.
-		DPrintf("[RequestVote] %v give vote1 to %v, myEntries=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.Logs, args.LastLogIndex, args.LastLogTerm)
+		// Follower have voted to him or havenot vote yet, then give out tickect.
+		DPrintf("[RequestVote] %v give vote to %v, myEntries=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.Logs, args.LastLogIndex, args.LastLogTerm)
 		rf.VotedFor = args.CandidateId
 		rf.CurrentTerm = args.Term
 		reply.VoteGranted = true
