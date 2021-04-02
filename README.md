@@ -142,6 +142,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 1. As for the persist part, Lab2C is easy to be done, once you finish `persist()` and`readPersist()`  according to example code and insert  `rf.persist()` in anywhere raft's state changes.
    - Do not try to use `Json.Marshal  ` and `Json.Unmarshal`, or you will face *JsonNumber, int64 and float64 problem.*
 2. Though, Lab2C may discover some points that are easy to overlook in you Lab2B implements.
+   - between losing a lock and holding a lock, any state of Raft could have changed.
    - after your RPC call returns, check if it is an old reply from old term, since RPC call may delay for a long time.
    - according to **Firgure 8**, one can only commit entries of old term when it is commiting entries from currentTerm.
 3. You may not call `persist()` for every entry when you apply it, since it will consume a lot time and fails in `TestFigure8Unreliable2C`
