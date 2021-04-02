@@ -33,24 +33,26 @@ func moreUpToDate(lastLogIndex1 int, lastLogTerm1 int, lastLogIndex2 int, lastLo
 }
 
 func (rf *Raft) getLastLogIndex() int {
-	return len(rf.logs) - 1
+	return len(rf.Logs) - 1
 }
 
 func (rf *Raft) getLastLogTerm() int {
-	return rf.logs[rf.getLastLogIndex()].Term
+	return rf.Logs[rf.getLastLogIndex()].Term
 }
 
 // initialization some variables when rf become a leader
 func (rf *Raft) leaderInitialization() {
-	rf.nextIndex = make([]int, len(rf.peers))
-	rf.matchIndex = make([]int, len(rf.peers))
-	for server := range rf.nextIndex {
-		rf.nextIndex[server] = rf.getLastLogIndex() + 1
+	rf.NextIndex = make([]int, len(rf.peers))
+	rf.MatchIndex = make([]int, len(rf.peers))
+	for server := range rf.NextIndex {
+		rf.NextIndex[server] = rf.getLastLogIndex() + 1
 	}
+	rf.persist()
 }
 
 func (rf *Raft) appendLog(entry *Entry) {
-	rf.logs = append(rf.logs, entry)
+	rf.Logs = append(rf.Logs, entry)
+	rf.persist()
 }
 
 func (rf *Raft) applyLog(msg ApplyMsg) {
@@ -62,15 +64,22 @@ func (rf *Raft) getMajority() int32 {
 }
 
 func (rf *Raft) refreshElectionTimeout() {
-	rf.lastHeartbeat = time.Now().UnixNano() / 1e6
+	rf.LastHeartbeat = time.Now().UnixNano() / 1e6
 }
 
 func (rf *Raft) isLeader() bool {
-	return (rf.role == Leader)
+	return (rf.Role == Leader)
 }
 
 func min(a, b int) int {
 	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b

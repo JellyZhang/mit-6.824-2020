@@ -37,8 +37,8 @@ func (rf *Raft) GetState() (int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
-	term = rf.currentTerm
-	isleader = (rf.role == Leader)
+	term = rf.CurrentTerm
+	isleader = (rf.Role == Leader)
 
 	return term, isleader
 }
@@ -120,17 +120,17 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
-	DPrintf("[Start] %v get command=%v", rf.me, command)
 	isLeader := rf.isLeader()
 	if !isLeader {
 		return -1, -1, isLeader
 	}
 
+	DPrintf("[Start] %v get command=%v", rf.me, command)
 	rf.appendLog(&Entry{
-		Term:    rf.currentTerm,
+		Term:    rf.CurrentTerm,
 		Command: command,
 	})
-	term := rf.currentTerm
+	term := rf.CurrentTerm
 	index := rf.getLastLogIndex()
 
 	return index, term, isLeader
@@ -175,25 +175,27 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		persister:       persister,
 		me:              me,
 		applyCh:         applyCh,
-		role:            Follower,
-		currentTerm:     0,
-		votedFor:        -1,
-		getVotedTickets: 0,
-		logs:            make([]*Entry, 0),
-		commitIndex:     0,
-		lastApplied:     0,
+		Role:            Follower,
+		CurrentTerm:     0,
+		VotedFor:        -1,
+		GetVotedTickets: 0,
+		Logs:            make([]*Entry, 0),
+		CommitIndex:     0,
+		LastApplied:     0,
 	}
 
 	// according to raft-extented paper, log index starts from 1
-	rf.logs = append(rf.logs, &Entry{
+	rf.Logs = append(rf.Logs, &Entry{
 		Term:    0,
 		Command: "start",
 	})
-	rf.nextIndex = make([]int, len(rf.peers))
-	rf.matchIndex = make([]int, len(rf.peers))
+	rf.NextIndex = make([]int, len(rf.peers))
+	rf.MatchIndex = make([]int, len(rf.peers))
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
+	rf.refreshElectionTimeout()
+	DPrintf("[Make] %v now status=%+v", rf.me, rf)
 
 	// start ticker goroutine to start elections / send heartbeats
 	go rf.electionTicker()

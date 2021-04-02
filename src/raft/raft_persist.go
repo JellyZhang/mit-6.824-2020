@@ -22,9 +22,18 @@ func (rf *Raft) persist() {
 	// rf.persister.SaveRaftState(data)
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
-	e.Encode(rf.me)
+	e.Encode(rf.CurrentTerm)
+	e.Encode(rf.Role)
+	e.Encode(rf.VotedFor)
+	e.Encode(rf.GetVotedTickets)
+	e.Encode(rf.Logs)
+	e.Encode(rf.CommitIndex)
+	e.Encode(rf.LastApplied)
+	e.Encode(rf.NextIndex)
+	e.Encode(rf.MatchIndex)
 	data := w.Bytes()
-	DPrintf("[persist] data=%v", data)
+
+	DPrintf("[persist] %v, rf.currentTerm=%+v, len(rf.logs)=%v, rf.NextIndex=%+v", rf.me, rf.CurrentTerm, len(rf.Logs), rf.NextIndex)
 	rf.persister.SaveRaftState(data)
 
 }
@@ -51,10 +60,35 @@ func (rf *Raft) readPersist(data []byte) {
 	// }
 	r := bytes.NewBuffer(data)
 	d := labgob.NewDecoder(r)
-	var me int
-	if d.Decode(&me) != nil {
-		DPrintf("[readPersist] error, me=%v", me)
+	var currentTerm int
+	var role Role
+	var votedFor int
+	var getVotedTickets int32
+	var logs []*Entry
+	var commitIndex int
+	var lastApplied int
+	var nextIndex []int
+	var matchIndex []int
+	if d.Decode(&currentTerm) != nil ||
+		d.Decode(&role) != nil ||
+		d.Decode(&votedFor) != nil ||
+		d.Decode(&getVotedTickets) != nil ||
+		d.Decode(&logs) != nil ||
+		d.Decode(&commitIndex) != nil ||
+		d.Decode(&lastApplied) != nil ||
+		d.Decode(&nextIndex) != nil ||
+		d.Decode(&matchIndex) != nil {
+		DPrintf("[readPersist] %v error", rf.me)
 	} else {
-		rf.me = me
+		rf.CurrentTerm = currentTerm
+		rf.Role = role
+		rf.VotedFor = votedFor
+		rf.GetVotedTickets = getVotedTickets
+		rf.Logs = logs
+		rf.CommitIndex = commitIndex
+		rf.LastApplied = lastApplied
+		rf.NextIndex = nextIndex
+		rf.MatchIndex = matchIndex
 	}
+	DPrintf("[readPersist] %v, rf.CurrentTerm=%v, len(rf.Logs=%v), rf.NextIndex=%+v", rf.me, rf.CurrentTerm, len(rf.Logs), rf.NextIndex)
 }

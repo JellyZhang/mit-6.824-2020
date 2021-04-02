@@ -26,33 +26,34 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	DPrintf("[AppendEntries] %v get AppendEntries, args=%+v", rf.me, args)
 
 	// AppendEntries request from old term, ignore.
-	if args.Term < rf.currentTerm {
-		DPrintf("[AppendEntries] %v get low term from %v, myterm=%v, histerm=%v", rf.me, args.LeaderId, rf.currentTerm, args.Term)
+	if args.Term < rf.CurrentTerm {
+		DPrintf("[AppendEntries] %v get low term from %v, myterm=%v, histerm=%v", rf.me, args.LeaderId, rf.CurrentTerm, args.Term)
 		reply.Success = false
-		reply.Term = rf.currentTerm
+		reply.Term = rf.CurrentTerm
 		return
 	}
 
 	reply.Success = true
-	rf.currentTerm = args.Term
-	rf.role = Follower
+	rf.CurrentTerm = args.Term
+	rf.Role = Follower
 	rf.refreshElectionTimeout()
-	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.currentTerm)
+	rf.persist()
+	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.CurrentTerm)
 
 	// check if prevLogIndex and prevLogTerm match.
-	if args.PrevLogIndex >= len(rf.logs) || rf.logs[args.PrevLogIndex].Term != args.PrevLogTerm {
-		DPrintf("[AppendEntries] dont exist prev entry, rf.entry=%+v, args.Entries=%+v", rf.logs, args.Entries)
+	if args.PrevLogIndex >= len(rf.Logs) || rf.Logs[args.PrevLogIndex].Term != args.PrevLogTerm {
 		confictTermFirstIndex := -1
-		if args.PrevLogIndex < len(rf.logs) {
-			confictTerm := rf.logs[args.PrevLogIndex].Term
+		if args.PrevLogIndex < len(rf.Logs) {
+			confictTerm := rf.Logs[args.PrevLogIndex].Term
 			confictTermFirstIndex = args.PrevLogIndex
-			for rf.logs[confictTermFirstIndex-1].Term == confictTerm {
+			for rf.Logs[confictTermFirstIndex-1].Term == confictTerm {
 				confictTermFirstIndex--
 			}
 		} else {
-			confictTermFirstIndex = rf.getLastLogIndex()
+			confictTermFirstIndex = rf.getLastLogIndex() + 1
 		}
 
+		DPrintf("[AppendEntries] %v dont exist prev entry, rf.entry=%+v, args=%+v, giveback nexttry=%v", rf.me, rf.Logs, args, confictTermFirstIndex)
 		reply.NextTryIndex = confictTermFirstIndex
 		reply.Success = false
 		return
@@ -60,31 +61,34 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 
 	// if there are some new logs, append it to our log.
 	if len(args.Entries) > 0 {
-		rf.logs = rf.logs[0 : args.PrevLogIndex+1]
-		rf.logs = append(rf.logs, args.Entries...)
+		rf.Logs = rf.Logs[0 : args.PrevLogIndex+1]
+		rf.Logs = append(rf.Logs, args.Entries...)
+		rf.persist()
 	}
 
 	// update commitIndex.
-	oldCommit := rf.commitIndex
-	rf.commitIndex = min(args.LeaderCommitIndex, rf.getLastLogIndex())
-	DPrintf("[AppendEntries] %v try check commitIndex, oldCommit=%v, new=%v", rf.me, oldCommit, rf.commitIndex)
+	oldCommit := rf.CommitIndex
+	newCommit := min(args.LeaderCommitIndex, rf.getLastLogIndex())
+	DPrintf("[AppendEntries] %v try check commitIndex, oldCommit=%v, new=%v", rf.me, oldCommit, newCommit)
 
 	// if our commitIndex is updated, then we apply the logs between them.
-	if oldCommit < rf.commitIndex {
-		for i := oldCommit + 1; i <= rf.commitIndex; i++ {
+	if oldCommit < newCommit {
+		for i := oldCommit + 1; i <= newCommit; i++ {
 			valid := false
-			if i >= rf.lastApplied {
+			if i >= rf.LastApplied {
 				valid = true
-				rf.lastApplied = i
 			}
 			msg := ApplyMsg{
 				CommandValid: valid,
-				Command:      rf.logs[i].Command,
+				Command:      rf.Logs[i].Command,
 				CommandIndex: i,
 			}
 			DPrintf("[AppendEntries] %v apply, msg=%+v", rf.me, msg)
 			rf.applyLog(msg)
+			rf.CommitIndex = i
+			rf.LastApplied = i
 		}
+		rf.persist()
 	}
 	return
 }

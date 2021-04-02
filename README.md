@@ -121,3 +121,16 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
   - Follower only append logs if leader's _prevLogIndex_ and _prevLogTerm_ match Follower's.
   - ApplyChannal is used for one node to apply command to tester when _commitIndex_ increases.
   - If you finished Lab2B but find out it takes about 60s to finish TestBackUp2B, you should optimize the way you decrease nextIndex[i]. see more in the quoted section in raft paper 5.3.
+
+
+
+## Lab2C
+
+### Run
+
+```bash
+git clone https://github.com/JellyZhang/mit-6.824-2021.git
+cd mit-6.824-2021
+docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2C
+```
+
