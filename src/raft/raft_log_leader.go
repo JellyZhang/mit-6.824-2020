@@ -33,7 +33,6 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 		} else {
 			// decrease this server's nextIndex and retry later.
 			rf.NextIndex[server] = reply.NextTryIndex
-			//rf.NextIndex[server]--
 			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get refused, now nextIndex[i]=%v", rf.me, server, rf.NextIndex[server])
 		}
 		rf.persist()

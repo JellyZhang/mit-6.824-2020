@@ -85,7 +85,6 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 
 - Some tips:
   - Use goroutines to start RequestVote RPC call and AppendEnties RPC call makes code easy debugging.
-  - When gathering votes, we can use sync.Cond to wait for enough votes.
   - Use mutex to lock when reading or writing.
   - It is Important to record a copy of node's original situation before sleeping, because term/role may change during sleep.
 
@@ -133,4 +132,17 @@ git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
 docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2C
 ```
+
+### Pic
+
+![image-20210402224823060](https://tva1.sinaimg.cn/large/008eGmZEly1gp5sbbfmakj30ry0g0q6b.jpg)
+
+### Comments
+
+1. As for the persist part, Lab2C is easy to be done, once you finish `persist()` and`readPersist()`  according to example code and insert  `rf.persist()` in anywhere raft's state changes.
+   - Do not try to use `Json.Marshal  ` and `Json.Unmarshal`, or you will face *JsonNumber, int64 and float64 problem.*
+2. Though, Lab2C may discover some points that are easy to overlook in you Lab2B implements.
+   - after your RPC call returns, check if it is an old reply from old term, since RPC call may delay for a long time.
+   - according to **Firgure 8**, one can only commit entries of old term when it is commiting entries from currentTerm.
+3. You may not call `persist()` for every entry when you apply it, since it will consume a lot time and fails in `TestFigure8Unreliable2C`
 

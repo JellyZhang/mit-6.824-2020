@@ -43,23 +43,22 @@ type Raft struct {
 	// Your data here (2A, 2B, 2C).
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
-	CurrentTerm     int      `json:"current_term"`
-	Role            Role     `json:"role"`
-	VotedFor        int      `json:"voted_for"`
-	GetVotedTickets int32    `json:"get_voted_tickets"`
-	LastHeartbeat   int64    `json:"last_heartbeat"`
-	Logs            []*Entry `json:"logs"`
-	CommitIndex     int      `json:"commit_index"`
-	LastApplied     int      `json:"last_applied"`
-	NextIndex       []int    `json:"next_index"`
-	MatchIndex      []int    `json:"match_index"`
-
-	applyCh chan ApplyMsg `json:"apply_ch"`
+	CurrentTerm     int
+	Role            Role
+	VotedFor        int
+	GetVotedTickets int32
+	LastHeartbeat   int64
+	Logs            []*Entry
+	CommitIndex     int
+	LastApplied     int
+	NextIndex       []int
+	MatchIndex      []int
+	applyCh         chan ApplyMsg
 }
 
 type Entry struct {
-	Term    int         `json:"term"`
-	Command interface{} `json:"command"`
+	Term    int
+	Command interface{}
 }
 
 // String Function for print debug info
