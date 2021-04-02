@@ -85,7 +85,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
     - get node's last timestamp of receving leader's heartbeat again, check if it has changed.
     - if two timestamps are same, which means there is no heartbeat during sleeping, then start an election.
   - Leader ticker: send heartbeats to Followers and Candidates periodically.
-    - accoding to guide, heartbeats duration should be greater than 100ms.
+    - accoding to guide, heartbeats interval should be greater than 100ms.
 
 - Some tips:
   - Use goroutines to start RequestVote RPC call and AppendEnties RPC call makes code easy debugging.
