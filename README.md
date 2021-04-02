@@ -146,3 +146,4 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
    - according to **Firgure 8**, one can only commit entries of old term when it is commiting entries from currentTerm.
 3. You may not call `persist()` for every entry when you apply it, since it will consume a lot time and fails in `TestFigure8Unreliable2C`
 
+4. Use something like `while go test -race -run Figure8Unreliable2C; do :; done` to run tests  multiple times, since you may pass tests by luck.
