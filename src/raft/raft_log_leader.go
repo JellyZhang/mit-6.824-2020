@@ -68,12 +68,8 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	if cnt+1 >= rf.getMajority() {
 		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.CommitIndex)
 		for i := oldCommit + 1; i <= newCommitIndex; i++ {
-			valid := false
-			if i >= rf.LastApplied {
-				valid = true
-			}
 			msg := ApplyMsg{
-				CommandValid: valid,
+				CommandValid: true,
 				Command:      rf.Logs[i].Command,
 				CommandIndex: i,
 			}

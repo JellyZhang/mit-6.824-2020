@@ -74,12 +74,8 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	// if our commitIndex is updated, then we apply the logs between them.
 	if oldCommit < newCommit {
 		for i := oldCommit + 1; i <= newCommit; i++ {
-			valid := false
-			if i >= rf.LastApplied {
-				valid = true
-			}
 			msg := ApplyMsg{
-				CommandValid: valid,
+				CommandValid: true,
 				Command:      rf.Logs[i].Command,
 				CommandIndex: i,
 			}
