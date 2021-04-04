@@ -191,7 +191,7 @@ Lab 2D is consists of two parts:
   - according to the paper, leader sends `InstallSnapshot RPC` to followers when the leader has already discarded the next log entry that it needs to send to a follower.
   - when receiving this RPC call, a follower should save the snapshot and apply it to his log, and send  a ApplyMsg to applyChannel.
   - `rf.CondInstallSnapshot()` is used by the service.(see config.go, fuction applierSnap)
-  - In ``rf.CondInstallSnapshot()`, you can either check node's state is not changed and then apply the snapshot to logs, and then return true to tell the service to make a snapshot at the same time.
+  - In `rf.CondInstallSnapshot()`, you can either check node's state is not changed and then apply the snapshot to logs, and then return true to tell the service to make a snapshot at the same time.
   - Or you can just return true, and apply the snapshot to logs before you pass ApplyMsg to applyChannel.
 
 
