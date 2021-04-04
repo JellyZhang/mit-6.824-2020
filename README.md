@@ -179,11 +179,13 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 
 ### Comments
 
+[diagram of Raft interactions](http://nil.csail.mit.edu/6.824/2021/notes/raft_diagram.pdf)
+
 Lab 2D is consists of two parts:
 
 - Part1: self log compaction.
   - This happens every 10 entries. (see config.go, fuction applierSnap)
-  - Every 10 entries you apply to the service, the service will make a snapshot himself (at where we can't see) and call `rf.Snapshot()`  to tell the node that `i have made a snapshot to index=X, you can compact your log now`.
+  - Every 10 entries you apply to the service, the service will make a snapshot himself (at where we can't see) and call `rf.Snapshot()`  to tell the node that `i have made a snapshot before index=X, you can compact your log now`.
   - So we should compact our log in `rf.Snapshot()`, which means we only keep the tail of the logs.
   - If you are trying to hold some lock in `rf.Snapshot()`,  you may be stuck in some Deadlock situation. Try adding another lock for log usage.
   - After this, we should pass `TestSnapshotBasic2D`
