@@ -58,9 +58,6 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 		reply.Success = true
 	} else {
 		newLog := make([]*Entry, 0)
-		//for i := startIndex + 1; i <= len(rf.Logs)-1; i++ {
-		//newLog = append(newLog, rf.Logs[i])
-		//}
 		newLog = append(newLog, &Entry{
 			Index:   args.LastIncludedIndex,
 			Term:    args.LastIncludedTerm,

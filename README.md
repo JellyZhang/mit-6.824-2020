@@ -159,7 +159,11 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 
 ### Run
 
-
+```bash
+git clone https://github.com/JellyZhang/mit-6.824-2021.git
+cd mit-6.824-2021
+docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2D
+```
 
 ### Pic
 
@@ -167,14 +171,46 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 
 ### Comments
 
+Lab 2D is consists of two parts:
+
+- Part1: self log compaction.
+  - This happens every 10 entries. (see config.go, fuction applierSnap)
+  - Every 10 entries you apply to the service, the service will make a snapshot himself (at where we can't see) and call `rf.Snapshot()`  to tell the node that `i have made a snapshot to index=X, you can compact your log now`.
+  - So we should compact our log in `rf.Snapshot()`, which means we only keep the tail of the logs.
+  - If you are trying to hold some lock in `rf.Snapshot()`,  you may be stuck in some Deadlock situation. Try adding another lock for log usage.
+  - After this, we should pass `TestSnapshotBasic2D`
+- Part2: send InstallSnapshot RPC
+  - according to the paper, leader sends `InstallSnapshot RPC` to followers when the leader has already discarded the next log entry that it needs to send to a follower.
+  - when receiving this RPC call, a follower should save the snapshot and apply it to his log, and send  a ApplyMsg to applyChannel.
+  - `rf.CondInstallSnapshot()` is used by the service.(see config.go, fuction applierSnap)
+  - In ``rf.CondInstallSnapshot()`, you can either check node's state is not changed and then apply the snapshot to logs, and then return true to tell the service to make a snapshot at the same time.
+  - Or you can just return true, and apply the snapshot to logs before you pass ApplyMsg to applyChannel.
+
 
 
 ## Summary
 
-- Total time for the full set of Lab 2 tests is 487s, about 8 minutes.
-- Total CPU time (user) is 93s, about one and a half minutes.
+### Run
+
+```bash
+git clone https://github.com/JellyZhang/mit-6.824-2021.git
+cd mit-6.824-2021
+docker run -v $PWD:/6.824 -w /6.824/src/raft tetafro/golang-gcc:1.15-alpine time go test -race 
+```
 
 ### Pic
 
+- MacOS
+
 ![image-20210405005037999](https://tva1.sinaimg.cn/large/008eGmZEly1gp8734l926j30n202ot8w.jpg)
+
+- alpine
+
+  ![image-20210405012750136](https://tva1.sinaimg.cn/large/008eGmZEly1gp885sp8gaj30e104274g.jpg)
+
+### Comments
+
+- Total time for the full set of Lab 2 tests is about 8 minutes.
+- Total CPU time (user) is about 1.5m in Macos, 2m in Alpine.
+- Since pure official golang-alpine images do not have `gcc`,  so I recommend using this [golang-gcc image](https://github.com/tetafro/docker-golang-gcc)
 
