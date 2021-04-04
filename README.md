@@ -152,3 +152,29 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 3. You may not call `persist()` for every entry when you apply it, since it will consume a lot time and fails in `TestFigure8Unreliable2C`
 
 4. Use something like `while go test -race -run Figure8Unreliable2C; do :; done` to run tests  multiple times, since you may pass tests by luck.
+
+
+
+## Lab2D
+
+### Run
+
+
+
+### Pic
+
+![image-20210405005422164](https://tva1.sinaimg.cn/large/008eGmZEly1gp876z9r2ij30qn0aowgp.jpg)
+
+### Comments
+
+
+
+## Summary
+
+- Total time for the full set of Lab 2 tests is 487s, about 8 minutes.
+- Total CPU time (user) is 93s, about one and a half minutes.
+
+### Pic
+
+![image-20210405005037999](https://tva1.sinaimg.cn/large/008eGmZEly1gp8734l926j30n202ot8w.jpg)
+

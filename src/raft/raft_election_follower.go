@@ -16,6 +16,8 @@ type RequestVoteReply struct {
 func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	rf.logmu.Lock()
+	defer rf.logmu.Unlock()
 	DPrintf("[RequestVote] me=%v, be asked to voted to %v, his term=%v", rf.me, args.CandidateId, args.Term)
 
 	reply.Term = rf.CurrentTerm
@@ -40,11 +42,11 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	// Candidate's log should at least up-to-date as Follower's log.
 	// refer to 5.4.1
 	if moreUpToDate(rf.getLastLogIndex(), rf.getLastLogTerm(), args.LastLogIndex, args.LastLogTerm) {
-		DPrintf("[RequestVote] %v cant give vote to %v because he is too old, myEntries=%+v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.Logs, args.LastLogIndex, args.LastLogTerm)
+		DPrintf("[RequestVote] %v cant give vote to %v because he is too old, lastLogIndex=%v, lastLogTerm=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.getLastLogIndex(), rf.getLastLogTerm(), args.LastLogIndex, args.LastLogTerm)
 		reply.VoteGranted = false
 	} else if rf.VotedFor == args.CandidateId || rf.VotedFor == -1 {
 		// Follower have voted to him or havenot vote yet, then give out tickect.
-		DPrintf("[RequestVote] %v give vote to %v, myEntries=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.Logs, args.LastLogIndex, args.LastLogTerm)
+		DPrintf("[RequestVote] %v give vote to %v, lastLogIndex=%v, lastLogTerm=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.getLastLogIndex(), rf.getLastLogTerm(), args.LastLogIndex, args.LastLogTerm)
 		rf.VotedFor = args.CandidateId
 		rf.CurrentTerm = args.Term
 		reply.VoteGranted = true

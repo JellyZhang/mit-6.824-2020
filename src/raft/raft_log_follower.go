@@ -37,16 +37,19 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.CurrentTerm = args.Term
 	rf.Role = Follower
 	rf.refreshElectionTimeout()
+	rf.logmu.Lock()
 	rf.persist()
+	rf.logmu.Unlock()
 	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.CurrentTerm)
 
+	rf.logmu.Lock()
 	// check if prevLogIndex and prevLogTerm match.
-	if args.PrevLogIndex >= len(rf.Logs) || rf.Logs[args.PrevLogIndex].Term != args.PrevLogTerm {
-		confictTermFirstIndex := -1
-		if args.PrevLogIndex < len(rf.Logs) {
-			confictTerm := rf.Logs[args.PrevLogIndex].Term
+	if args.PrevLogIndex > rf.getLastLogIndex() || rf.getLogTerm(args.PrevLogIndex) != args.PrevLogTerm || (args.PrevLogIndex == rf.getSnapshotLastIndex() && args.PrevLogTerm != rf.getSnapshotLastTerm()) {
+		var confictTermFirstIndex int
+		if args.PrevLogIndex <= rf.getLastLogIndex() {
+			confictTerm := rf.getLogTerm(args.PrevLogIndex)
 			confictTermFirstIndex = args.PrevLogIndex
-			for rf.Logs[confictTermFirstIndex-1].Term == confictTerm {
+			for confictTermFirstIndex-1 >= rf.Logs[0].Index && rf.getLogTerm(confictTermFirstIndex-1) == confictTerm {
 				confictTermFirstIndex--
 			}
 		} else {
@@ -56,13 +59,20 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		DPrintf("[AppendEntries] %v dont exist prev entry, rf.entry=%+v, args=%+v, giveback nexttry=%v", rf.me, rf.Logs, args, confictTermFirstIndex)
 		reply.NextTryIndex = confictTermFirstIndex
 		reply.Success = false
+		rf.logmu.Unlock()
 		return
 	}
 
 	// if there are some new logs, append it to our log.
 	if len(args.Entries) > 0 {
-		rf.Logs = rf.Logs[0 : args.PrevLogIndex+1]
-		rf.Logs = append(rf.Logs, args.Entries...)
+		newLog := make([]*Entry, 0)
+		for i := rf.Logs[0].Index; i <= args.PrevLogIndex; i++ {
+			newLog = append(newLog, rf.getLog(i))
+		}
+		newLog = append(newLog, args.Entries...)
+		rf.Logs = newLog
+		//rf.Logs = rf.Logs[0 : args.PrevLogIndex-rf.snapShotLastIndex]
+		//rf.Logs = append(rf.Logs, args.Entries...)
 		rf.persist()
 	}
 
@@ -70,21 +80,27 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	oldCommit := rf.CommitIndex
 	newCommit := min(args.LeaderCommitIndex, rf.getLastLogIndex())
 	DPrintf("[AppendEntries] %v try check commitIndex, oldCommit=%v, new=%v", rf.me, oldCommit, newCommit)
+	rf.logmu.Unlock()
 
 	// if our commitIndex is updated, then we apply the logs between them.
 	if oldCommit < newCommit {
 		for i := oldCommit + 1; i <= newCommit; i++ {
-			msg := ApplyMsg{
-				CommandValid: true,
-				Command:      rf.Logs[i].Command,
-				CommandIndex: i,
-			}
-			DPrintf("[AppendEntries] %v apply, msg=%+v", rf.me, msg)
-			rf.applyLog(msg)
+			//msg := ApplyMsg{
+			//CommandValid: true,
+			//Command:      rf.getLog(i).Command,
+			//CommandIndex: i,
+			//}
+			//DPrintf("[AppendEntries] %v apply, msg=%+v", rf.me, msg)
+			//rf.applyLog(msg)
+			//rf.CommitIndex = i
+			//rf.LastApplied = i
+			rf.applyLog(i)
 			rf.CommitIndex = i
 			rf.LastApplied = i
 		}
+		rf.logmu.Lock()
 		rf.persist()
+		rf.logmu.Unlock()
 	}
 	return
 }

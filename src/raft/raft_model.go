@@ -54,14 +54,17 @@ type Raft struct {
 	NextIndex       []int
 	MatchIndex      []int
 	applyCh         chan ApplyMsg
+
+	logmu sync.Mutex
 }
 
 type Entry struct {
+	Index   int
 	Term    int
 	Command interface{}
 }
 
 // String Function for print debug info
 func (e *Entry) String() string {
-	return fmt.Sprintf("{term=%v command=%v} ", e.Term, e.Command)
+	return fmt.Sprintf("{index=%v term=%v command=%v} ", e.Index, e.Term, e.Command)
 }

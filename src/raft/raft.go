@@ -44,26 +44,6 @@ func (rf *Raft) GetState() (int, bool) {
 }
 
 //
-// A service wants to switch to snapshot.  Only do so if Raft hasn't
-// have more recent info since it communicate the snapshot on applyCh.
-//
-func (rf *Raft) CondInstallSnapshot(lastIncludedTerm int, lastIncludedIndex int, snapshot []byte) bool {
-
-	// Your code here (2D).
-
-	return true
-}
-
-// the service says it has created a snapshot that has
-// all info up to and including index. this means the
-// service no longer needs the log through (and including)
-// that index. Raft should now trim its log as much as possible.
-func (rf *Raft) Snapshot(index int, snapshot []byte) {
-	// Your code here (2D).
-
-}
-
-//
 // example code to send a RequestVote RPC to a server.
 // server is the index of the target server in rf.peers[].
 // expects RPC arguments in args.
@@ -124,6 +104,8 @@ func (rf *Raft) sendInstallSnapshot(server int, args *InstallSnapshotArgs, reply
 func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	rf.logmu.Lock()
+	defer rf.logmu.Unlock()
 
 	isLeader := rf.isLeader()
 	if !isLeader {
@@ -131,12 +113,13 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	}
 
 	DPrintf("[Start] %v get command=%v", rf.me, command)
+	index := rf.getLastLogIndex() + 1
+	term := rf.CurrentTerm
 	rf.appendLog(&Entry{
-		Term:    rf.CurrentTerm,
+		Index:   index,
+		Term:    term,
 		Command: command,
 	})
-	term := rf.CurrentTerm
-	index := rf.getLastLogIndex()
 
 	return index, term, isLeader
 }
@@ -191,6 +174,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 
 	// according to raft-extented paper, log index starts from 1
 	rf.Logs = append(rf.Logs, &Entry{
+		Index:   0,
 		Term:    0,
 		Command: "start",
 	})

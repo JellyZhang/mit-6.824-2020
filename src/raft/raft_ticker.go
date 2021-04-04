@@ -15,22 +15,27 @@ func (rf *Raft) leaderTicker() {
 		t := rf.CurrentTerm
 		if r == Leader {
 			DPrintf("[leaderTicker] %v send heartsbeats", rf.me)
+			rf.logmu.Lock()
 			for i := range rf.peers {
 				if i == rf.me {
 					continue
 				}
 				prevLogIndex := rf.NextIndex[i] - 1
-				if prevLogIndex == -1 {
-					DPrintf("[panic] me=%v, i=%v, nextIndex=%v", rf.me, i, rf.NextIndex)
+				if prevLogIndex < rf.getSnapshotLastIndex() {
+					DPrintf("[leaderTicker] leader %v choose to install snapShot to %v, prevLogIndex=%v", rf.me, i, prevLogIndex)
+					go rf.doInstallSnapshot(i, t, rf.getSnapshotLastIndex(), rf.getSnapshotLastTerm(), rf.getSnapshotLastData())
+				} else {
+					prevLogTerm := rf.getLogTerm(prevLogIndex)
+					DPrintf("[leaderTicker] %v prevLogIndex=%v, prevLogTerm=%v", i, prevLogIndex, prevLogTerm)
+					entries := make([]*Entry, 0)
+					for j := prevLogIndex + 1; j <= rf.getLastLogIndex(); j++ {
+						entries = append(entries, rf.getLog(j))
+					}
+					leaderCommitIndex := rf.CommitIndex
+					go rf.sendHeartbeat(i, t, prevLogIndex, prevLogTerm, entries, leaderCommitIndex)
 				}
-				prevLogTerm := rf.Logs[prevLogIndex].Term
-				entries := make([]*Entry, 0)
-				for j := rf.NextIndex[i]; j < len(rf.Logs); j++ {
-					entries = append(entries, rf.Logs[j])
-				}
-				leaderCommitIndex := rf.CommitIndex
-				go rf.sendHeartbeat(i, t, prevLogIndex, prevLogTerm, entries, leaderCommitIndex)
 			}
+			rf.logmu.Unlock()
 		}
 		rf.mu.Unlock()
 	}

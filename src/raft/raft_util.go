@@ -32,12 +32,36 @@ func moreUpToDate(lastLogIndex1 int, lastLogTerm1 int, lastLogIndex2 int, lastLo
 	return ans
 }
 
+func (rf *Raft) getLog(index int) *Entry {
+	//DPrintf("[getLog] %v logs=%+v, index=%v", rf.me, rf.Logs, index)
+	offset := rf.Logs[0].Index
+	return rf.Logs[index-offset]
+}
+
+func (rf *Raft) getLogTerm(index int) int {
+	//DPrintf("[getLogTerm] %v logs=%+v, index=%v", rf.me, rf.Logs, index)
+	offset := rf.Logs[0].Index
+	return rf.Logs[index-offset].Term
+}
+
 func (rf *Raft) getLastLogIndex() int {
-	return len(rf.Logs) - 1
+	return rf.Logs[len(rf.Logs)-1].Index
 }
 
 func (rf *Raft) getLastLogTerm() int {
-	return rf.Logs[rf.getLastLogIndex()].Term
+	return rf.Logs[len(rf.Logs)-1].Term
+}
+
+func (rf *Raft) getSnapshotLastIndex() int {
+	return rf.Logs[0].Index
+}
+
+func (rf *Raft) getSnapshotLastTerm() int {
+	return rf.Logs[0].Term
+}
+
+func (rf *Raft) getSnapshotLastData() interface{} {
+	return rf.Logs[0].Command
 }
 
 // initialization some variables when rf become a leader
@@ -55,7 +79,15 @@ func (rf *Raft) appendLog(entry *Entry) {
 	rf.persist()
 }
 
-func (rf *Raft) applyLog(msg ApplyMsg) {
+func (rf *Raft) applyLog(index int) {
+	rf.logmu.Lock()
+	msg := ApplyMsg{
+		CommandValid: true,
+		Command:      rf.getLog(index).Command,
+		CommandIndex: index,
+	}
+	rf.logmu.Unlock()
+	DPrintf("[applyLog] %v apply msg=%+v", rf.me, msg)
 	rf.applyCh <- msg
 }
 

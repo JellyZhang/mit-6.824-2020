@@ -3,6 +3,8 @@ package raft
 // Candidate starts Election
 func (rf *Raft) startElection(startTerm int) {
 	rf.mu.Lock()
+	rf.logmu.Lock()
+	defer rf.logmu.Unlock()
 	defer rf.mu.Unlock()
 
 	// state changed after we rehold lock.
@@ -44,6 +46,8 @@ func (rf *Raft) askForVote(server int, startTerm int, lastLogIndex int, lastLogT
 
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	rf.logmu.Lock()
+	defer rf.logmu.Unlock()
 
 	// state changed after we rehold the lock.
 	if startTerm < rf.CurrentTerm || rf.Role != Candidate {
@@ -63,12 +67,13 @@ func (rf *Raft) askForVote(server int, startTerm int, lastLogIndex int, lastLogT
 	// received 1 tickect, check if we have enough tickets.
 	if reply.VoteGranted && rf.CurrentTerm == startTerm {
 		rf.GetVotedTickets++
+		DPrintf("[askForVote] %v get vote from %v, now have %v", rf.me, server, rf.GetVotedTickets)
 		if rf.GetVotedTickets >= rf.getMajority() {
 			rf.Role = Leader
 			rf.leaderInitialization()
+			DPrintf("[askForVote] %v is leader now", rf.me)
 		}
 		rf.persist()
-		DPrintf("[askForVote] %v get vote from %v, now have %v", rf.me, server, rf.GetVotedTickets)
 		return
 	}
 }

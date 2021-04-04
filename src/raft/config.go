@@ -186,7 +186,7 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 	lastApplied := 0
 	for m := range applyCh {
 		if m.SnapshotValid {
-			//DPrintf("Installsnapshot %v %v\n", m.SnapshotIndex, lastApplied)
+			DPrintf("[=======] Installsnapshot %v %v\n", m.SnapshotIndex, lastApplied)
 			cfg.mu.Lock()
 			if cfg.rafts[i].CondInstallSnapshot(m.SnapshotTerm,
 				m.SnapshotIndex, m.Snapshot) {
@@ -202,7 +202,7 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 			}
 			cfg.mu.Unlock()
 		} else if m.CommandValid && m.CommandIndex > lastApplied {
-			//DPrintf("apply %v lastApplied %v\n", m.CommandIndex, lastApplied)
+			DPrintf("[=======] %v apply %v lastApplied %v\n", i, m.CommandIndex, lastApplied)
 			cfg.mu.Lock()
 			err_msg, prevok := cfg.checkLogs(i, m)
 			cfg.mu.Unlock()
@@ -228,7 +228,7 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 			// commands. Old command may never happen,
 			// depending on the Raft implementation, but
 			// just in case.
-			// DPrintf("Ignore: Index %v lastApplied %v\n", m.CommandIndex, lastApplied)
+			DPrintf("Ignore: Index %v lastApplied %v\n", m.CommandIndex, lastApplied)
 
 		}
 	}
@@ -274,13 +274,14 @@ func (cfg *config) start1(i int, applier func(int, chan ApplyMsg)) {
 	cfg.mu.Unlock()
 
 	applyCh := make(chan ApplyMsg)
-	go applier(i, applyCh)
 
 	rf := Make(ends, i, cfg.saved[i], applyCh)
 
 	cfg.mu.Lock()
 	cfg.rafts[i] = rf
 	cfg.mu.Unlock()
+
+	go applier(i, applyCh)
 
 	svc := labrpc.MakeService(rf)
 	srv := labrpc.MakeServer()

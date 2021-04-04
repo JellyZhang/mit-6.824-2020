@@ -30,25 +30,33 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 			rf.CurrentTerm = max(reply.Term, rf.CurrentTerm)
 			rf.Role = Follower
 			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get a newer term, term=%v", rf.me, server, rf.CurrentTerm)
-		} else {
+		} else if reply.NextTryIndex > 0 {
 			// decrease this server's nextIndex and retry later.
 			rf.NextIndex[server] = reply.NextTryIndex
 			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get refused, now nextIndex[i]=%v", rf.me, server, rf.NextIndex[server])
 		}
+		rf.logmu.Lock()
 		rf.persist()
+		rf.logmu.Unlock()
 		return
 	}
 
 	DPrintf("[sendHeartbeat] %v sendHeartbeat to %v succeed, args=%+v", rf.me, server, args)
 	rf.MatchIndex[server] = prevLogIndex + len(entries)
 	rf.NextIndex[server] = rf.MatchIndex[server] + 1
+	rf.logmu.Lock()
 	rf.persist()
+	rf.logmu.Unlock()
 
 	// check if we can update commitIndex to newCommitIndex
 	oldCommit := rf.CommitIndex
 	newCommitIndex := rf.MatchIndex[server]
-	if newCommitIndex <= oldCommit || rf.Logs[newCommitIndex].Term != rf.CurrentTerm {
-		// already commited before.
+	rf.logmu.Lock()
+	//t := rf.getLog(newCommitIndex).Term
+	t := rf.getLogTerm(newCommitIndex)
+	rf.logmu.Unlock()
+	if newCommitIndex <= oldCommit || t != rf.CurrentTerm {
+		// already commited before or trying to commit only old term entries.
 		return
 	}
 
@@ -66,19 +74,25 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	DPrintf("[sendHeartbeat] %v try set commitIndex to %v, cnt=%v", rf.me, newCommitIndex, cnt)
 	// check if majority of cluster (including leader himself) has received logs of at least logs[newCommitIndex]
 	if cnt+1 >= rf.getMajority() {
-		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.CommitIndex)
 		for i := oldCommit + 1; i <= newCommitIndex; i++ {
-			msg := ApplyMsg{
-				CommandValid: true,
-				Command:      rf.Logs[i].Command,
-				CommandIndex: i,
-			}
-			DPrintf("[sendHeartbeat] %v apply msg=%+v", rf.me, msg)
+			//msg := ApplyMsg{
+			//CommandValid: true,
+			//Command:      rf.getLog(i).Command,
+			//CommandIndex: i,
+			//}
+			//DPrintf("[sendHeartbeat] %v apply msg=%+v", rf.me, msg)
+			//rf.CommitIndex = i
+			//rf.applyLog(msg)
+			//rf.LastApplied = i
+			//DPrintf("[sendHeartbeat] %v apply msg=%+v success", rf.me, msg)
+			rf.applyLog(i)
 			rf.CommitIndex = i
-			rf.applyLog(msg)
 			rf.LastApplied = i
 		}
+		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.CommitIndex)
+		rf.logmu.Lock()
 		rf.persist()
+		rf.logmu.Unlock()
 	}
 	DPrintf("[sendHeartbeat] %v sendHeartbeat to %v succeed, now nextIndex[i]=%v, matchIndex[i]=%v", rf.me, server, rf.NextIndex[server], rf.MatchIndex[server])
 }
