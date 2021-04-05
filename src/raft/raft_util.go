@@ -71,24 +71,11 @@ func (rf *Raft) leaderInitialization() {
 	for server := range rf.NextIndex {
 		rf.NextIndex[server] = rf.getLastLogIndex() + 1
 	}
-	rf.persist()
 }
 
 func (rf *Raft) appendLog(entry *Entry) {
 	rf.Logs = append(rf.Logs, entry)
 	rf.persist()
-}
-
-func (rf *Raft) applyLog(index int) {
-	rf.logmu.Lock()
-	msg := ApplyMsg{
-		CommandValid: true,
-		Command:      rf.getLog(index).Command,
-		CommandIndex: index,
-	}
-	rf.logmu.Unlock()
-	DPrintf("[applyLog] %v apply msg=%+v", rf.me, msg)
-	rf.applyCh <- msg
 }
 
 func (rf *Raft) getMajority() int32 {

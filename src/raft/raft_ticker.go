@@ -47,12 +47,7 @@ func (rf *Raft) electionTicker() {
 	for rf.killed() == false {
 		rf.mu.Lock()
 		before := rf.LastHeartbeat
-		r := rf.Role
 		rf.mu.Unlock()
-		if r == Leader {
-			time.Sleep(getElectionTimeout() * time.Millisecond)
-			continue
-		}
 		// sleep for a while and check if we received leader's heartsbeats during our sleep
 		time.Sleep(getElectionTimeout() * time.Millisecond)
 
@@ -68,8 +63,6 @@ func (rf *Raft) electionTicker() {
 			rf.Role = Candidate
 			startTerm := rf.CurrentTerm
 			go rf.startElection(startTerm)
-		} else {
-			DPrintf("[electionTicker] dont start election, me=%v, before=%v, after=%v, r=%v", rf.me, before, after, role)
 		}
 		rf.mu.Unlock()
 	}

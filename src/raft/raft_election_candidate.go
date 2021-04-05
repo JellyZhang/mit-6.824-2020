@@ -11,6 +11,8 @@ func (rf *Raft) startElection(startTerm int) {
 	if rf.CurrentTerm != startTerm || rf.Role != Candidate {
 		return
 	}
+
+	// vote for myself
 	rf.VotedFor = rf.me
 	rf.GetVotedTickets = 1
 	lastLogIndex := rf.getLastLogIndex()

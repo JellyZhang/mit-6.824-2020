@@ -18,32 +18,39 @@ func (rf *Raft) persist() {
 	e.Encode(rf.Role)
 	e.Encode(rf.VotedFor)
 	e.Encode(rf.GetVotedTickets)
-	e.Encode(rf.Logs)
 	e.Encode(rf.CommitIndex)
 	e.Encode(rf.LastApplied)
 	e.Encode(rf.NextIndex)
 	e.Encode(rf.MatchIndex)
-	data := w.Bytes()
+	state := w.Bytes()
+
+	w = new(bytes.Buffer)
+	e = labgob.NewEncoder(w)
+	e.Encode(rf.Logs)
+	snapshot := w.Bytes()
 
 	DPrintf("[persist] %v, rf.currentTerm=%+v, len(rf.logs)=%v, rf.NextIndex=%+v", rf.me, rf.CurrentTerm, len(rf.Logs), rf.NextIndex)
-	rf.persister.SaveRaftState(data)
+	rf.persister.SaveStateAndSnapshot(state, snapshot)
 
 }
 
 //
 // restore previously persisted state.
 //
-func (rf *Raft) readPersist(data []byte) {
-	if data == nil || len(data) < 1 { // bootstrap without any state?
+func (rf *Raft) readPersist(state []byte, snapshot []byte) {
+	if state == nil || len(state) < 1 { // bootstrap without any state?
 		return
 	}
-	r := bytes.NewBuffer(data)
+	if snapshot == nil || len(snapshot) < 1 {
+		return
+	}
+
+	r := bytes.NewBuffer(state)
 	d := labgob.NewDecoder(r)
 	var currentTerm int
 	var role Role
 	var votedFor int
 	var getVotedTickets int32
-	var logs []*Entry
 	var commitIndex int
 	var lastApplied int
 	var nextIndex []int
@@ -52,22 +59,29 @@ func (rf *Raft) readPersist(data []byte) {
 		d.Decode(&role) != nil ||
 		d.Decode(&votedFor) != nil ||
 		d.Decode(&getVotedTickets) != nil ||
-		d.Decode(&logs) != nil ||
 		d.Decode(&commitIndex) != nil ||
 		d.Decode(&lastApplied) != nil ||
 		d.Decode(&nextIndex) != nil ||
 		d.Decode(&matchIndex) != nil {
-		DPrintf("[readPersist] %v error", rf.me)
+		DPrintf("[readPersist] %v decode error", rf.me)
 	} else {
 		rf.CurrentTerm = currentTerm
 		rf.Role = role
 		rf.VotedFor = votedFor
 		rf.GetVotedTickets = getVotedTickets
-		rf.Logs = logs
 		rf.CommitIndex = commitIndex
 		rf.LastApplied = lastApplied
 		rf.NextIndex = nextIndex
 		rf.MatchIndex = matchIndex
+	}
+
+	r = bytes.NewBuffer(snapshot)
+	d = labgob.NewDecoder(r)
+	var logs []*Entry
+	if d.Decode(&logs) != nil {
+		DPrintf("[readPersist] %v decode error", rf.me)
+	} else {
+		rf.Logs = logs
 	}
 	DPrintf("[readPersist] %v, rf.CurrentTerm=%v, len(rf.Logs=%v), rf.NextIndex=%+v", rf.me, rf.CurrentTerm, len(rf.Logs), rf.NextIndex)
 }

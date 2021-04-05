@@ -35,5 +35,4 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	}
 	rf.Logs = newLog
 	DPrintf("[Snapshot] %v snapshot success, newLog=%v", rf.me, rf.Logs)
-
 }

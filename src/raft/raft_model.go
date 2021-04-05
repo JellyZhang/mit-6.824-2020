@@ -55,6 +55,7 @@ type Raft struct {
 	MatchIndex      []int
 	applyCh         chan ApplyMsg
 
+	// logmu is used when accessing rf.Logs
 	logmu sync.Mutex
 }
 

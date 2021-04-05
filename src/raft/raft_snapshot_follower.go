@@ -15,8 +15,7 @@ type InstallSnapshotArgs struct {
 }
 
 type InstallSnapshotReply struct {
-	Success bool
-	Term    int
+	Term int
 }
 
 func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapshotReply) {
@@ -36,40 +35,26 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	rf.Role = Follower
 	reply.Term = rf.CurrentTerm
 
-	if args.LastIncludedIndex < rf.getSnapshotLastIndex() {
-		DPrintf("[panic] args=%+v, rf.snapShotLastIndex=%v", args, rf.getSnapshotLastIndex())
-		panic("")
-	}
-
-	if args.LastIncludedIndex == rf.getSnapshotLastIndex() {
-		reply.Success = true
+	// already have this snapShot
+	if args.LastIncludedIndex <= rf.getSnapshotLastIndex() {
 		return
 	}
 
-	if args.LastIncludedIndex >= rf.getLastLogIndex() {
-		newLog := make([]*Entry, 0)
-		newLog = append(newLog, &Entry{
-			Index:   args.LastIncludedIndex,
-			Term:    args.LastIncludedTerm,
-			Command: args.Data,
-		})
-		rf.CommitIndex = args.LastIncludedIndex
-		rf.Logs = newLog
-		reply.Success = true
-	} else {
-		newLog := make([]*Entry, 0)
-		newLog = append(newLog, &Entry{
-			Index:   args.LastIncludedIndex,
-			Term:    args.LastIncludedTerm,
-			Command: args.Data,
-		})
+	newLog := make([]*Entry, 0)
+	newLog = append(newLog, &Entry{
+		Index:   args.LastIncludedIndex,
+		Term:    args.LastIncludedTerm,
+		Command: args.Data,
+	})
+
+	// retain log entries that following Snapshot
+	if args.LastIncludedIndex < rf.getLastLogIndex() {
 		for i := args.LastIncludedIndex + 1; i <= rf.getLastLogIndex(); i++ {
 			newLog = append(newLog, rf.getLog(i))
 		}
-		rf.CommitIndex = max(rf.CommitIndex, args.LastIncludedIndex)
-		rf.Logs = newLog
-		reply.Success = true
 	}
+	rf.Logs = newLog
+	rf.CommitIndex = args.LastIncludedIndex
 
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)

@@ -71,33 +71,30 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 		newLog = append(newLog, args.Entries...)
 		rf.Logs = newLog
-		//rf.Logs = rf.Logs[0 : args.PrevLogIndex-rf.snapShotLastIndex]
-		//rf.Logs = append(rf.Logs, args.Entries...)
 		rf.persist()
 	}
 
 	// update commitIndex.
-	oldCommit := rf.CommitIndex
-	newCommit := min(args.LeaderCommitIndex, rf.getLastLogIndex())
-	DPrintf("[AppendEntries] %v try check commitIndex, oldCommit=%v, new=%v", rf.me, oldCommit, newCommit)
+	oldCommitIndex := rf.CommitIndex
+	newCommitIndex := min(args.LeaderCommitIndex, rf.getLastLogIndex())
+	DPrintf("[AppendEntries] %v try check commitIndex, oldCommit=%v, new=%v", rf.me, oldCommitIndex, newCommitIndex)
 	rf.logmu.Unlock()
 
 	// if our commitIndex is updated, then we apply the logs between them.
-	if oldCommit < newCommit {
-		for i := oldCommit + 1; i <= newCommit; i++ {
-			//msg := ApplyMsg{
-			//CommandValid: true,
-			//Command:      rf.getLog(i).Command,
-			//CommandIndex: i,
-			//}
-			//DPrintf("[AppendEntries] %v apply, msg=%+v", rf.me, msg)
-			//rf.applyLog(msg)
-			//rf.CommitIndex = i
-			//rf.LastApplied = i
-			rf.applyLog(i)
-			rf.CommitIndex = i
-			rf.LastApplied = i
+	if oldCommitIndex < newCommitIndex {
+		for i := oldCommitIndex + 1; i <= newCommitIndex; i++ {
+			rf.logmu.Lock()
+			msg := ApplyMsg{
+				CommandValid: true,
+				Command:      rf.getLog(i).Command,
+				CommandIndex: i,
+			}
+			rf.logmu.Unlock()
+			DPrintf("[applyLog] %v apply msg=%+v", rf.me, msg)
+			rf.applyCh <- msg
 		}
+		rf.CommitIndex = newCommitIndex
+		rf.LastApplied = newCommitIndex
 		rf.logmu.Lock()
 		rf.persist()
 		rf.logmu.Unlock()

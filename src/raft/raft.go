@@ -172,7 +172,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		LastApplied:     0,
 	}
 
-	// according to raft-extented paper, log index starts from 1
+	// use log[0] as snapShot
 	rf.Logs = append(rf.Logs, &Entry{
 		Index:   0,
 		Term:    0,
@@ -182,9 +182,8 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.MatchIndex = make([]int, len(rf.peers))
 
 	// initialize from state persisted before a crash
-	rf.readPersist(persister.ReadRaftState())
+	rf.readPersist(persister.ReadRaftState(), persister.ReadSnapshot())
 	rf.refreshElectionTimeout()
-	DPrintf("[Make] %v now status=%+v", rf.me, rf)
 
 	// start ticker goroutine to start elections / send heartbeats
 	go rf.electionTicker()

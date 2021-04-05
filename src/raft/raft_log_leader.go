@@ -49,13 +49,12 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	rf.logmu.Unlock()
 
 	// check if we can update commitIndex to newCommitIndex
-	oldCommit := rf.CommitIndex
+	oldCommitIndex := rf.CommitIndex
 	newCommitIndex := rf.MatchIndex[server]
 	rf.logmu.Lock()
-	//t := rf.getLog(newCommitIndex).Term
-	t := rf.getLogTerm(newCommitIndex)
+	newCommitTerm := rf.getLogTerm(newCommitIndex)
 	rf.logmu.Unlock()
-	if newCommitIndex <= oldCommit || t != rf.CurrentTerm {
+	if newCommitIndex <= oldCommitIndex || newCommitTerm != rf.CurrentTerm {
 		// already commited before or trying to commit only old term entries.
 		return
 	}
@@ -74,21 +73,19 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	DPrintf("[sendHeartbeat] %v try set commitIndex to %v, cnt=%v", rf.me, newCommitIndex, cnt)
 	// check if majority of cluster (including leader himself) has received logs of at least logs[newCommitIndex]
 	if cnt+1 >= rf.getMajority() {
-		for i := oldCommit + 1; i <= newCommitIndex; i++ {
-			//msg := ApplyMsg{
-			//CommandValid: true,
-			//Command:      rf.getLog(i).Command,
-			//CommandIndex: i,
-			//}
-			//DPrintf("[sendHeartbeat] %v apply msg=%+v", rf.me, msg)
-			//rf.CommitIndex = i
-			//rf.applyLog(msg)
-			//rf.LastApplied = i
-			//DPrintf("[sendHeartbeat] %v apply msg=%+v success", rf.me, msg)
-			rf.applyLog(i)
-			rf.CommitIndex = i
-			rf.LastApplied = i
+		for i := oldCommitIndex + 1; i <= newCommitIndex; i++ {
+			rf.logmu.Lock()
+			msg := ApplyMsg{
+				CommandValid: true,
+				Command:      rf.getLog(i).Command,
+				CommandIndex: i,
+			}
+			rf.logmu.Unlock()
+			DPrintf("[sendHeartbeat] %v apply msg=%+v", rf.me, msg)
+			rf.applyCh <- msg
 		}
+		rf.CommitIndex = newCommitIndex
+		rf.LastApplied = newCommitIndex
 		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.CommitIndex)
 		rf.logmu.Lock()
 		rf.persist()
