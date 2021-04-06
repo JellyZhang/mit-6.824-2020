@@ -25,15 +25,15 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	defer rf.logmu.Unlock()
 	DPrintf("[InstallSnapshot] %v get InstallSnapshot, args=%+v", rf.me, args)
 
-	if args.Term < rf.CurrentTerm {
-		DPrintf("[InstallSnapshot] %v get low term from %v, myterm=%v, histerm=%v", rf.me, args.LeaderId, rf.CurrentTerm, args.Term)
-		reply.Term = rf.CurrentTerm
+	if args.Term < rf.currentTerm {
+		DPrintf("[InstallSnapshot] %v get low term from %v, myterm=%v, histerm=%v", rf.me, args.LeaderId, rf.currentTerm, args.Term)
+		reply.Term = rf.currentTerm
 		return
 	}
 
-	rf.CurrentTerm = args.Term
-	rf.Role = Follower
-	reply.Term = rf.CurrentTerm
+	rf.currentTerm = args.Term
+	rf.role = Follower
+	reply.Term = rf.currentTerm
 
 	// already have this snapShot
 	if args.LastIncludedIndex <= rf.getSnapshotLastIndex() {
@@ -53,8 +53,8 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 			newLog = append(newLog, rf.getLog(i))
 		}
 	}
-	rf.Logs = newLog
-	rf.CommitIndex = args.LastIncludedIndex
+	rf.logs = newLog
+	rf.commitIndex = args.LastIncludedIndex
 
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
@@ -68,6 +68,6 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	}
 	rf.applyCh <- msg
 	rf.persist()
-	DPrintf("[InstallSnapshot] %v get snapShot, args=%+v, now log=%+v", rf.me, args, rf.Logs)
+	DPrintf("[InstallSnapshot] %v get snapShot, args=%+v, now log=%+v", rf.me, args, rf.logs)
 
 }

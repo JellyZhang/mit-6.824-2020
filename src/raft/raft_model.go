@@ -43,16 +43,16 @@ type Raft struct {
 	// Your data here (2A, 2B, 2C).
 	// Look at the paper's Figure 2 for a description of what
 	// state a Raft server must maintain.
-	CurrentTerm     int
-	Role            Role
-	VotedFor        int
-	GetVotedTickets int32
-	LastHeartbeat   int64
-	Logs            []*Entry
-	CommitIndex     int
-	LastApplied     int
-	NextIndex       []int
-	MatchIndex      []int
+	currentTerm     int
+	role            Role
+	votedFor        int
+	getVotedTickets int32
+	lastHeartbeat   int64
+	logs            []*Entry
+	commitIndex     int
+	lastApplied     int
+	nextIndex       []int
+	matchIndex      []int
 	applyCh         chan ApplyMsg
 
 	// logmu is used when accessing rf.Logs

@@ -20,22 +20,22 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	defer rf.logmu.Unlock()
 	DPrintf("[RequestVote] me=%v, be asked to voted to %v, his term=%v", rf.me, args.CandidateId, args.Term)
 
-	reply.Term = rf.CurrentTerm
+	reply.Term = rf.currentTerm
 
 	// requestVote from old term Candidate, ignore.
-	if args.Term < rf.CurrentTerm {
-		DPrintf("[RequestVote] me=%v, too old term dont give vote, currentTerm=%v", rf.me, rf.CurrentTerm)
-		reply.Term = rf.CurrentTerm
+	if args.Term < rf.currentTerm {
+		DPrintf("[RequestVote] me=%v, too old term dont give vote, currentTerm=%v", rf.me, rf.currentTerm)
+		reply.Term = rf.currentTerm
 		reply.VoteGranted = false
 		return
 	}
 
 	// requestVote from higher term, update our term
-	if args.Term > rf.CurrentTerm {
+	if args.Term > rf.currentTerm {
 		DPrintf("[RequestVote] %v get bigger term=%v from %v", rf.me, args.Term, args.CandidateId)
-		rf.CurrentTerm = args.Term
-		rf.Role = Follower
-		rf.VotedFor = -1
+		rf.currentTerm = args.Term
+		rf.role = Follower
+		rf.votedFor = -1
 		rf.persist()
 	}
 
@@ -44,20 +44,20 @@ func (rf *Raft) RequestVote(args *RequestVoteArgs, reply *RequestVoteReply) {
 	if moreUpToDate(rf.getLastLogIndex(), rf.getLastLogTerm(), args.LastLogIndex, args.LastLogTerm) {
 		DPrintf("[RequestVote] %v cant give vote to %v because he is too old, lastLogIndex=%v, lastLogTerm=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.getLastLogIndex(), rf.getLastLogTerm(), args.LastLogIndex, args.LastLogTerm)
 		reply.VoteGranted = false
-	} else if rf.VotedFor == args.CandidateId || rf.VotedFor == -1 {
+	} else if rf.votedFor == args.CandidateId || rf.votedFor == -1 {
 		// Follower have voted to him or havenot vote yet, then give out tickect.
 		DPrintf("[RequestVote] %v give vote to %v, lastLogIndex=%v, lastLogTerm=%v, his LastLogIndex=%v, LastLogTerm=%v", rf.me, args.CandidateId, rf.getLastLogIndex(), rf.getLastLogTerm(), args.LastLogIndex, args.LastLogTerm)
-		rf.VotedFor = args.CandidateId
-		rf.CurrentTerm = args.Term
+		rf.votedFor = args.CandidateId
+		rf.currentTerm = args.Term
 		reply.VoteGranted = true
 		rf.refreshElectionTimeout()
 		rf.persist()
 	} else {
 		// Follower has voted to other Candidate.
-		DPrintf("[RequestVote] %v this term has voted to %v", rf.me, rf.VotedFor)
+		DPrintf("[RequestVote] %v this term has voted to %v", rf.me, rf.votedFor)
 		reply.VoteGranted = false
 	}
 
-	reply.Term = rf.CurrentTerm
+	reply.Term = rf.currentTerm
 	return
 }

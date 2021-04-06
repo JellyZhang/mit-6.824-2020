@@ -26,37 +26,38 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	DPrintf("[AppendEntries] %v get AppendEntries, args=%+v", rf.me, args)
 
 	// AppendEntries request from old term, ignore.
-	if args.Term < rf.CurrentTerm {
-		DPrintf("[AppendEntries] %v get low term from %v, myterm=%v, histerm=%v", rf.me, args.LeaderId, rf.CurrentTerm, args.Term)
+	if args.Term < rf.currentTerm {
+		DPrintf("[AppendEntries] %v get low term from %v, myterm=%v, histerm=%v", rf.me, args.LeaderId, rf.currentTerm, args.Term)
 		reply.Success = false
-		reply.Term = rf.CurrentTerm
+		reply.Term = rf.currentTerm
 		return
 	}
 
 	reply.Success = true
-	rf.CurrentTerm = args.Term
-	rf.Role = Follower
+	rf.currentTerm = args.Term
+	rf.role = Follower
 	rf.refreshElectionTimeout()
+
 	rf.logmu.Lock()
 	rf.persist()
 	rf.logmu.Unlock()
-	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.CurrentTerm)
+	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.currentTerm)
 
-	rf.logmu.Lock()
 	// check if prevLogIndex and prevLogTerm match.
+	rf.logmu.Lock()
 	if args.PrevLogIndex > rf.getLastLogIndex() || rf.getLogTerm(args.PrevLogIndex) != args.PrevLogTerm || (args.PrevLogIndex == rf.getSnapshotLastIndex() && args.PrevLogTerm != rf.getSnapshotLastTerm()) {
 		var confictTermFirstIndex int
 		if args.PrevLogIndex <= rf.getLastLogIndex() {
 			confictTerm := rf.getLogTerm(args.PrevLogIndex)
 			confictTermFirstIndex = args.PrevLogIndex
-			for confictTermFirstIndex-1 >= rf.Logs[0].Index && rf.getLogTerm(confictTermFirstIndex-1) == confictTerm {
+			for confictTermFirstIndex-1 >= rf.getSnapshotLastIndex() && rf.getLogTerm(confictTermFirstIndex-1) == confictTerm {
 				confictTermFirstIndex--
 			}
 		} else {
 			confictTermFirstIndex = rf.getLastLogIndex() + 1
 		}
 
-		DPrintf("[AppendEntries] %v dont exist prev entry, rf.entry=%+v, args=%+v, giveback nexttry=%v", rf.me, rf.Logs, args, confictTermFirstIndex)
+		DPrintf("[AppendEntries] %v dont exist prev entry, rf.entry=%+v, args=%+v, giveback nexttry=%v", rf.me, rf.logs, args, confictTermFirstIndex)
 		reply.NextTryIndex = confictTermFirstIndex
 		reply.Success = false
 		rf.logmu.Unlock()
@@ -66,16 +67,16 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	// if there are some new logs, append it to our log.
 	if len(args.Entries) > 0 {
 		newLog := make([]*Entry, 0)
-		for i := rf.Logs[0].Index; i <= args.PrevLogIndex; i++ {
+		for i := rf.logs[0].Index; i <= args.PrevLogIndex; i++ {
 			newLog = append(newLog, rf.getLog(i))
 		}
 		newLog = append(newLog, args.Entries...)
-		rf.Logs = newLog
+		rf.logs = newLog
 		rf.persist()
 	}
 
 	// update commitIndex.
-	oldCommitIndex := rf.CommitIndex
+	oldCommitIndex := rf.commitIndex
 	newCommitIndex := min(args.LeaderCommitIndex, rf.getLastLogIndex())
 	DPrintf("[AppendEntries] %v try check commitIndex, oldCommit=%v, new=%v", rf.me, oldCommitIndex, newCommitIndex)
 	rf.logmu.Unlock()
@@ -93,8 +94,8 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			DPrintf("[applyLog] %v apply msg=%+v", rf.me, msg)
 			rf.applyCh <- msg
 		}
-		rf.CommitIndex = newCommitIndex
-		rf.LastApplied = newCommitIndex
+		rf.commitIndex = newCommitIndex
+		rf.lastApplied = newCommitIndex
 		rf.logmu.Lock()
 		rf.persist()
 		rf.logmu.Unlock()

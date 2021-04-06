@@ -14,22 +14,22 @@ import (
 func (rf *Raft) persist() {
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
-	e.Encode(rf.CurrentTerm)
-	e.Encode(rf.Role)
-	e.Encode(rf.VotedFor)
-	e.Encode(rf.GetVotedTickets)
-	e.Encode(rf.CommitIndex)
-	e.Encode(rf.LastApplied)
-	e.Encode(rf.NextIndex)
-	e.Encode(rf.MatchIndex)
+	e.Encode(rf.currentTerm)
+	e.Encode(rf.role)
+	e.Encode(rf.votedFor)
+	e.Encode(rf.getVotedTickets)
+	e.Encode(rf.commitIndex)
+	e.Encode(rf.lastApplied)
+	e.Encode(rf.nextIndex)
+	e.Encode(rf.matchIndex)
 	state := w.Bytes()
 
 	w = new(bytes.Buffer)
 	e = labgob.NewEncoder(w)
-	e.Encode(rf.Logs)
+	e.Encode(rf.logs)
 	snapshot := w.Bytes()
 
-	DPrintf("[persist] %v, rf.currentTerm=%+v, len(rf.logs)=%v, rf.NextIndex=%+v", rf.me, rf.CurrentTerm, len(rf.Logs), rf.NextIndex)
+	DPrintf("[persist] %v, rf.currentTerm=%+v, len(rf.logs)=%v, rf.NextIndex=%+v", rf.me, rf.currentTerm, len(rf.logs), rf.nextIndex)
 	rf.persister.SaveStateAndSnapshot(state, snapshot)
 
 }
@@ -65,14 +65,14 @@ func (rf *Raft) readPersist(state []byte, snapshot []byte) {
 		d.Decode(&matchIndex) != nil {
 		DPrintf("[readPersist] %v decode error", rf.me)
 	} else {
-		rf.CurrentTerm = currentTerm
-		rf.Role = role
-		rf.VotedFor = votedFor
-		rf.GetVotedTickets = getVotedTickets
-		rf.CommitIndex = commitIndex
-		rf.LastApplied = lastApplied
-		rf.NextIndex = nextIndex
-		rf.MatchIndex = matchIndex
+		rf.currentTerm = currentTerm
+		rf.role = role
+		rf.votedFor = votedFor
+		rf.getVotedTickets = getVotedTickets
+		rf.commitIndex = commitIndex
+		rf.lastApplied = lastApplied
+		rf.nextIndex = nextIndex
+		rf.matchIndex = matchIndex
 	}
 
 	r = bytes.NewBuffer(snapshot)
@@ -81,7 +81,7 @@ func (rf *Raft) readPersist(state []byte, snapshot []byte) {
 	if d.Decode(&logs) != nil {
 		DPrintf("[readPersist] %v decode error", rf.me)
 	} else {
-		rf.Logs = logs
+		rf.logs = logs
 	}
-	DPrintf("[readPersist] %v, rf.CurrentTerm=%v, len(rf.Logs=%v), rf.NextIndex=%+v", rf.me, rf.CurrentTerm, len(rf.Logs), rf.NextIndex)
+	DPrintf("[readPersist] %v, rf.CurrentTerm=%v, len(rf.Logs=%v), rf.NextIndex=%+v", rf.me, rf.currentTerm, len(rf.logs), rf.nextIndex)
 }

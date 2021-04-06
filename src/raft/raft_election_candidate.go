@@ -8,13 +8,13 @@ func (rf *Raft) startElection(startTerm int) {
 	defer rf.mu.Unlock()
 
 	// state changed after we rehold lock.
-	if rf.CurrentTerm != startTerm || rf.Role != Candidate {
+	if rf.currentTerm != startTerm || rf.role != Candidate {
 		return
 	}
 
 	// vote for myself
-	rf.VotedFor = rf.me
-	rf.GetVotedTickets = 1
+	rf.votedFor = rf.me
+	rf.getVotedTickets = 1
 	lastLogIndex := rf.getLastLogIndex()
 	lastLogTerm := rf.getLastLogTerm()
 	DPrintf("[startElection] %v start election, term=%v, lastLogIndex=%v, lastLogTerm=%v", rf.me, startTerm, lastLogIndex, lastLogTerm)
@@ -52,26 +52,26 @@ func (rf *Raft) askForVote(server int, startTerm int, lastLogIndex int, lastLogT
 	defer rf.logmu.Unlock()
 
 	// state changed after we rehold the lock.
-	if startTerm < rf.CurrentTerm || rf.Role != Candidate {
-		DPrintf("[askForVote] too old information, startTerm=%v, currentTerm=%v, role=%v", startTerm, rf.CurrentTerm, rf.Role)
+	if startTerm < rf.currentTerm || rf.role != Candidate {
+		DPrintf("[askForVote] too old information, startTerm=%v, currentTerm=%v, role=%v", startTerm, rf.currentTerm, rf.role)
 		return
 	}
 
 	// discovered higher term, we should change to follower.
 	if reply.Term > startTerm {
-		rf.CurrentTerm = max(reply.Term, rf.CurrentTerm)
-		rf.Role = Follower
+		rf.currentTerm = max(reply.Term, rf.currentTerm)
+		rf.role = Follower
 		rf.persist()
-		DPrintf("[askForVote] %v term update during requestVote from %v, now term=%v", rf.me, server, rf.CurrentTerm)
+		DPrintf("[askForVote] %v term update during requestVote from %v, now term=%v", rf.me, server, rf.currentTerm)
 		return
 	}
 
 	// received 1 tickect, check if we have enough tickets.
-	if reply.VoteGranted && rf.CurrentTerm == startTerm {
-		rf.GetVotedTickets++
-		DPrintf("[askForVote] %v get vote from %v, now have %v", rf.me, server, rf.GetVotedTickets)
-		if rf.GetVotedTickets >= rf.getMajority() {
-			rf.Role = Leader
+	if reply.VoteGranted && rf.currentTerm == startTerm {
+		rf.getVotedTickets++
+		DPrintf("[askForVote] %v get vote from %v, now have %v", rf.me, server, rf.getVotedTickets)
+		if rf.getVotedTickets >= rf.getMajority() {
+			rf.role = Leader
 			rf.leaderInitialization()
 			DPrintf("[askForVote] %v is leader now", rf.me)
 		}

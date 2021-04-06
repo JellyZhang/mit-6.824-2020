@@ -37,8 +37,8 @@ func (rf *Raft) GetState() (int, bool) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 
-	term = rf.CurrentTerm
-	isleader = (rf.Role == Leader)
+	term = rf.currentTerm
+	isleader = (rf.role == Leader)
 
 	return term, isleader
 }
@@ -114,7 +114,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 
 	DPrintf("[Start] %v get command=%v", rf.me, command)
 	index := rf.getLastLogIndex() + 1
-	term := rf.CurrentTerm
+	term := rf.currentTerm
 	rf.appendLog(&Entry{
 		Index:   index,
 		Term:    term,
@@ -163,23 +163,23 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		persister:       persister,
 		me:              me,
 		applyCh:         applyCh,
-		Role:            Follower,
-		CurrentTerm:     0,
-		VotedFor:        -1,
-		GetVotedTickets: 0,
-		Logs:            make([]*Entry, 0),
-		CommitIndex:     0,
-		LastApplied:     0,
+		role:            Follower,
+		currentTerm:     0,
+		votedFor:        -1,
+		getVotedTickets: 0,
+		logs:            make([]*Entry, 0),
+		commitIndex:     0,
+		lastApplied:     0,
 	}
 
 	// use log[0] as snapShot
-	rf.Logs = append(rf.Logs, &Entry{
+	rf.logs = append(rf.logs, &Entry{
 		Index:   0,
 		Term:    0,
 		Command: "start",
 	})
-	rf.NextIndex = make([]int, len(rf.peers))
-	rf.MatchIndex = make([]int, len(rf.peers))
+	rf.nextIndex = make([]int, len(rf.peers))
+	rf.matchIndex = make([]int, len(rf.peers))
 
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState(), persister.ReadSnapshot())

@@ -19,17 +19,17 @@ func (rf *Raft) doInstallSnapshot(server int, startTerm int, LastIncludedIndex i
 	defer rf.mu.Unlock()
 
 	// term changed after we rehold the lock.
-	if startTerm != rf.CurrentTerm {
+	if startTerm != rf.currentTerm {
 		return
 	}
 
 	if reply.Term > startTerm {
-		rf.CurrentTerm = max(reply.Term, rf.CurrentTerm)
-		rf.Role = Follower
+		rf.currentTerm = max(reply.Term, rf.currentTerm)
+		rf.role = Follower
 		return
 	}
 
-	rf.NextIndex[server] = LastIncludedIndex + 1
+	rf.nextIndex[server] = LastIncludedIndex + 1
 
 	DPrintf("[doInstallSnapshot] %v send snapshot to %v success, args=%+v", rf.me, server, args)
 

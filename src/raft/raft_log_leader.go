@@ -21,19 +21,19 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	defer rf.mu.Unlock()
 
 	// term changed after we rehold the lock.
-	if startTerm != rf.CurrentTerm {
+	if startTerm != rf.currentTerm {
 		return
 	}
 
 	if reply.Success == false {
 		if reply.Term > startTerm {
-			rf.CurrentTerm = max(reply.Term, rf.CurrentTerm)
-			rf.Role = Follower
-			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get a newer term, term=%v", rf.me, server, rf.CurrentTerm)
+			rf.currentTerm = max(reply.Term, rf.currentTerm)
+			rf.role = Follower
+			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get a newer term, term=%v", rf.me, server, rf.currentTerm)
 		} else if reply.NextTryIndex > 0 {
 			// decrease this server's nextIndex and retry later.
-			rf.NextIndex[server] = reply.NextTryIndex
-			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get refused, now nextIndex[i]=%v", rf.me, server, rf.NextIndex[server])
+			rf.nextIndex[server] = reply.NextTryIndex
+			DPrintf("[sendHeartbeat] %v sendHeartbeat to %v but get refused, now nextIndex[i]=%v", rf.me, server, rf.nextIndex[server])
 		}
 		rf.logmu.Lock()
 		rf.persist()
@@ -42,19 +42,19 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 	}
 
 	DPrintf("[sendHeartbeat] %v sendHeartbeat to %v succeed, args=%+v", rf.me, server, args)
-	rf.MatchIndex[server] = prevLogIndex + len(entries)
-	rf.NextIndex[server] = rf.MatchIndex[server] + 1
+	rf.matchIndex[server] = prevLogIndex + len(entries)
+	rf.nextIndex[server] = rf.matchIndex[server] + 1
 	rf.logmu.Lock()
 	rf.persist()
 	rf.logmu.Unlock()
 
 	// check if we can update commitIndex to newCommitIndex
-	oldCommitIndex := rf.CommitIndex
-	newCommitIndex := rf.MatchIndex[server]
+	oldCommitIndex := rf.commitIndex
+	newCommitIndex := rf.matchIndex[server]
 	rf.logmu.Lock()
 	newCommitTerm := rf.getLogTerm(newCommitIndex)
 	rf.logmu.Unlock()
-	if newCommitIndex <= oldCommitIndex || newCommitTerm != rf.CurrentTerm {
+	if newCommitIndex <= oldCommitIndex || newCommitTerm != rf.currentTerm {
 		// already commited before or trying to commit only old term entries.
 		return
 	}
@@ -65,7 +65,7 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 		if i == rf.me {
 			continue
 		}
-		if rf.MatchIndex[i] >= newCommitIndex {
+		if rf.matchIndex[i] >= newCommitIndex {
 			cnt++
 		}
 	}
@@ -84,12 +84,12 @@ func (rf *Raft) sendHeartbeat(server int, startTerm int, prevLogIndex int, prevL
 			DPrintf("[sendHeartbeat] %v apply msg=%+v", rf.me, msg)
 			rf.applyCh <- msg
 		}
-		rf.CommitIndex = newCommitIndex
-		rf.LastApplied = newCommitIndex
-		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.CommitIndex)
+		rf.commitIndex = newCommitIndex
+		rf.lastApplied = newCommitIndex
+		DPrintf("[sendHeartbeat] %v leader now commitIndex=%v", rf.me, rf.commitIndex)
 		rf.logmu.Lock()
 		rf.persist()
 		rf.logmu.Unlock()
 	}
-	DPrintf("[sendHeartbeat] %v sendHeartbeat to %v succeed, now nextIndex[i]=%v, matchIndex[i]=%v", rf.me, server, rf.NextIndex[server], rf.MatchIndex[server])
+	DPrintf("[sendHeartbeat] %v sendHeartbeat to %v succeed, now nextIndex[i]=%v, matchIndex[i]=%v", rf.me, server, rf.nextIndex[server], rf.matchIndex[server])
 }

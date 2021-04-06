@@ -11,8 +11,8 @@ func (rf *Raft) leaderTicker() {
 	for rf.killed() == false {
 		time.Sleep(leaderHeartBeatDuration)
 		rf.mu.Lock()
-		r := rf.Role
-		t := rf.CurrentTerm
+		r := rf.role
+		t := rf.currentTerm
 		if r == Leader {
 			DPrintf("[leaderTicker] %v send heartsbeats", rf.me)
 			rf.logmu.Lock()
@@ -20,7 +20,7 @@ func (rf *Raft) leaderTicker() {
 				if i == rf.me {
 					continue
 				}
-				prevLogIndex := rf.NextIndex[i] - 1
+				prevLogIndex := rf.nextIndex[i] - 1
 				if prevLogIndex < rf.getSnapshotLastIndex() {
 					DPrintf("[leaderTicker] leader %v choose to install snapShot to %v, prevLogIndex=%v", rf.me, i, prevLogIndex)
 					go rf.doInstallSnapshot(i, t, rf.getSnapshotLastIndex(), rf.getSnapshotLastTerm(), rf.getSnapshotLastData())
@@ -31,7 +31,7 @@ func (rf *Raft) leaderTicker() {
 					for j := prevLogIndex + 1; j <= rf.getLastLogIndex(); j++ {
 						entries = append(entries, rf.getLog(j))
 					}
-					leaderCommitIndex := rf.CommitIndex
+					leaderCommitIndex := rf.commitIndex
 					go rf.sendHeartbeat(i, t, prevLogIndex, prevLogTerm, entries, leaderCommitIndex)
 				}
 			}
@@ -46,22 +46,22 @@ func (rf *Raft) leaderTicker() {
 func (rf *Raft) electionTicker() {
 	for rf.killed() == false {
 		rf.mu.Lock()
-		before := rf.LastHeartbeat
+		before := rf.lastHeartbeat
 		rf.mu.Unlock()
 		// sleep for a while and check if we received leader's heartsbeats during our sleep
 		time.Sleep(getElectionTimeout() * time.Millisecond)
 
 		rf.mu.Lock()
-		after := rf.LastHeartbeat
-		role := rf.Role
+		after := rf.lastHeartbeat
+		role := rf.role
 		DPrintf("[electionTicker] check election timeout, me=%v", rf.me)
 
 		// if this node dont get leader's heartsbeats during sleep, then start election
 		if before == after && role != Leader {
 			DPrintf("[electionTicker] start election, me=%v, role=%v", rf.me, role)
-			rf.CurrentTerm++
-			rf.Role = Candidate
-			startTerm := rf.CurrentTerm
+			rf.currentTerm++
+			rf.role = Candidate
+			startTerm := rf.currentTerm
 			go rf.startElection(startTerm)
 		}
 		rf.mu.Unlock()

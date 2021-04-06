@@ -33,6 +33,6 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 	for i := index + 1; i <= rf.getLastLogIndex(); i++ {
 		newLog = append(newLog, rf.getLog(i))
 	}
-	rf.Logs = newLog
-	DPrintf("[Snapshot] %v snapshot success, newLog=%v", rf.me, rf.Logs)
+	rf.logs = newLog
+	DPrintf("[Snapshot] %v snapshot success, newLog=%v", rf.me, rf.logs)
 }
