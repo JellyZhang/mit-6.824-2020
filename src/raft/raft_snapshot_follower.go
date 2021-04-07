@@ -1,17 +1,11 @@
 package raft
 
-import (
-	"bytes"
-
-	"6.824/labgob"
-)
-
 type InstallSnapshotArgs struct {
 	Term              int
 	LeaderId          int
 	LastIncludedIndex int
 	LastIncludedTerm  int
-	Data              interface{}
+	Data              []byte
 }
 
 type InstallSnapshotReply struct {
@@ -55,14 +49,11 @@ func (rf *Raft) InstallSnapshot(args *InstallSnapshotArgs, reply *InstallSnapsho
 	}
 	rf.logs = newLog
 	rf.commitIndex = args.LastIncludedIndex
+	rf.snapshotData = args.Data
 
-	w := new(bytes.Buffer)
-	e := labgob.NewEncoder(w)
-	e.Encode(rf.getSnapshotLastData())
-	b := w.Bytes()
 	msg := ApplyMsg{
 		SnapshotValid: true,
-		Snapshot:      b,
+		Snapshot:      rf.getSnapshotLastData(),
 		SnapshotTerm:  rf.getSnapshotLastTerm(),
 		SnapshotIndex: rf.getSnapshotLastIndex(),
 	}

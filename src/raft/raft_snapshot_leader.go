@@ -1,6 +1,6 @@
 package raft
 
-func (rf *Raft) doInstallSnapshot(server int, startTerm int, LastIncludedIndex int, LastIncludedTerm int, LastIncludedData interface{}) {
+func (rf *Raft) doInstallSnapshot(server int, startTerm int, LastIncludedIndex int, LastIncludedTerm int, LastIncludedData []byte) {
 	args := &InstallSnapshotArgs{
 		Term:              startTerm,
 		LeaderId:          rf.me,

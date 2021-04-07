@@ -15,7 +15,7 @@ func (rf *Raft) CondInstallSnapshot(lastIncludedTerm int, lastIncludedIndex int,
 // all info up to and including index. this means the
 // service no longer needs the log through (and including)
 // that index. Raft should now trim its log as much as possible.
-func (rf *Raft) Snapshot(index int, snapshot []byte) {
+func (rf *Raft) Snapshot(index int, snapshotBytes []byte) {
 	rf.logmu.Lock()
 	defer rf.logmu.Unlock()
 	DPrintf("[Snapshot] %v snapshot, index=%v", rf.me, index)
@@ -24,11 +24,12 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 		return
 	}
 
+	rf.snapshotData = snapshotBytes
+
 	newLog := make([]*Entry, 0)
 	newLog = append(newLog, &Entry{
-		Index:   index,
-		Term:    rf.getLog(index).Term,
-		Command: rf.getLog(index).Command,
+		Index: index,
+		Term:  rf.getLog(index).Term,
 	})
 	for i := index + 1; i <= rf.getLastLogIndex(); i++ {
 		newLog = append(newLog, rf.getLog(i))

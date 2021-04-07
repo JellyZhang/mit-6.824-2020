@@ -60,8 +60,8 @@ func (rf *Raft) getSnapshotLastTerm() int {
 	return rf.logs[0].Term
 }
 
-func (rf *Raft) getSnapshotLastData() interface{} {
-	return rf.logs[0].Command
+func (rf *Raft) getSnapshotLastData() []byte {
+	return rf.snapshotData
 }
 
 // initialization some variables when rf become a leader

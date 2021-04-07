@@ -112,7 +112,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		return -1, -1, isLeader
 	}
 
-	DPrintf("[Start] %v get command=%v", rf.me, command)
+	DPrintf("[Start] %v get command=%+v", rf.me, command)
 	index := rf.getLastLogIndex() + 1
 	term := rf.currentTerm
 	rf.appendLog(&Entry{
@@ -170,13 +170,13 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		logs:            make([]*Entry, 0),
 		commitIndex:     0,
 		lastApplied:     0,
+		snapshotData:    make([]byte, 0),
 	}
 
-	// use log[0] as snapShot
+	// use log[0] as snapShotIndex, snapShotTerm
 	rf.logs = append(rf.logs, &Entry{
-		Index:   0,
-		Term:    0,
-		Command: "start",
+		Index: 0,
+		Term:  0,
 	})
 	rf.nextIndex = make([]int, len(rf.peers))
 	rf.matchIndex = make([]int, len(rf.peers))

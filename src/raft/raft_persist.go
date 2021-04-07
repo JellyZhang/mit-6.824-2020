@@ -2,6 +2,7 @@ package raft
 
 import (
 	"bytes"
+	"log"
 
 	"6.824/labgob"
 )
@@ -12,36 +13,34 @@ import (
 // see paper's Figure 2 for a description of what should be persistent.
 //
 func (rf *Raft) persist() {
+
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(rf.currentTerm)
 	e.Encode(rf.role)
 	e.Encode(rf.votedFor)
 	e.Encode(rf.getVotedTickets)
+	e.Encode(rf.logs)
 	e.Encode(rf.commitIndex)
 	e.Encode(rf.lastApplied)
 	e.Encode(rf.nextIndex)
 	e.Encode(rf.matchIndex)
 	state := w.Bytes()
 
-	w = new(bytes.Buffer)
-	e = labgob.NewEncoder(w)
-	e.Encode(rf.logs)
-	snapshot := w.Bytes()
-
-	DPrintf("[persist] %v, rf.currentTerm=%+v, len(rf.logs)=%v, rf.NextIndex=%+v", rf.me, rf.currentTerm, len(rf.logs), rf.nextIndex)
-	rf.persister.SaveStateAndSnapshot(state, snapshot)
+	DPrintf("[persist] %v, len(snapshotData)=%v", rf.me, len(rf.snapshotData))
+	rf.persister.SaveStateAndSnapshot(state, rf.snapshotData)
 
 }
 
 //
 // restore previously persisted state.
 //
-func (rf *Raft) readPersist(state []byte, snapshot []byte) {
+func (rf *Raft) readPersist(state []byte, snapshotBytes []byte) {
+	DPrintf("[readPersist] %v readPersist", rf.me)
 	if state == nil || len(state) < 1 { // bootstrap without any state?
 		return
 	}
-	if snapshot == nil || len(snapshot) < 1 {
+	if snapshotBytes == nil {
 		return
 	}
 
@@ -51,6 +50,7 @@ func (rf *Raft) readPersist(state []byte, snapshot []byte) {
 	var role Role
 	var votedFor int
 	var getVotedTickets int32
+	var logs []*Entry
 	var commitIndex int
 	var lastApplied int
 	var nextIndex []int
@@ -59,29 +59,24 @@ func (rf *Raft) readPersist(state []byte, snapshot []byte) {
 		d.Decode(&role) != nil ||
 		d.Decode(&votedFor) != nil ||
 		d.Decode(&getVotedTickets) != nil ||
+		d.Decode(&logs) != nil ||
 		d.Decode(&commitIndex) != nil ||
 		d.Decode(&lastApplied) != nil ||
 		d.Decode(&nextIndex) != nil ||
 		d.Decode(&matchIndex) != nil {
-		DPrintf("[readPersist] %v decode error", rf.me)
+		log.Fatalf("[readPersist] %v decode error", rf.me)
 	} else {
 		rf.currentTerm = currentTerm
 		rf.role = role
 		rf.votedFor = votedFor
 		rf.getVotedTickets = getVotedTickets
+		rf.logs = logs
 		rf.commitIndex = commitIndex
 		rf.lastApplied = lastApplied
 		rf.nextIndex = nextIndex
 		rf.matchIndex = matchIndex
 	}
 
-	r = bytes.NewBuffer(snapshot)
-	d = labgob.NewDecoder(r)
-	var logs []*Entry
-	if d.Decode(&logs) != nil {
-		DPrintf("[readPersist] %v decode error", rf.me)
-	} else {
-		rf.logs = logs
-	}
-	DPrintf("[readPersist] %v, rf.CurrentTerm=%v, len(rf.Logs=%v), rf.NextIndex=%+v", rf.me, rf.currentTerm, len(rf.logs), rf.nextIndex)
+	rf.snapshotData = snapshotBytes
+	DPrintf("[readPersist] %v, rf.snapshotData=%v", rf.me, rf.snapshotData)
 }
