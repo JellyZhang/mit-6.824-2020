@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  Test-Lab1-Lab2:
+  Test-Lab1:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -21,24 +21,64 @@ jobs:
         working-directory: ./src/main
         run: bash ./test-mr.sh
 
+  Test-Lab2A:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
       - name: Test Lab2A
         working-directory: ./src/raft
         run: go test -race -run 2A
+
+  Test-Lab2B:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
 
       - name: Test Lab2B
         working-directory: ./src/raft
         run: go test -race -run 2B
 
+  Test-Lab2C:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
       - name: Test Lab2C
         working-directory: ./src/raft
         run: go test -race -run 2C
+
+  Test-Lab2D:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
 
       - name: Test Lab2D
         working-directory: ./src/raft
         run: go test -race -run 2D
 
-  Test-Lab3:
-    # Github Action's ubuntu environment can't pass TestSpeed3A due to poor cpu(2-core) while macos(3-core) can.
+  Test-Lab3A:
+    # Github Action's ubuntu environment may can't pass TestSpeed3A due to poor cpu(2-core) while macos(3-core) can.
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
