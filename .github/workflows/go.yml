@@ -22,4 +22,4 @@ jobs:
       run: go env
 
     - name: Test Lab2A
-      run: /bin/bash -c 'cd src/main && go env -w GO111MODULE=on && go test -race -run 2A'
+      run: /bin/bash -c 'cd src/raft && go env -w GO111MODULE=on && go test -race -run 2A'
