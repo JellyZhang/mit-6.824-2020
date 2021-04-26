@@ -1,6 +1,6 @@
 # mit-6.824-2021
 
-Go implements of mit-6.824 labs. [![Go](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml/badge.svg?branch=master&event=push)](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml)
+Go implements of mit-6.824 labs. [![Go](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml/badge.svg?branch=master&event=push)](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml) ⬅️ test results may be different in different environment.(especially in docker). I only make sure `Github Action` passes tests.(indicating by this badge)
 
 # Table of Contents
 
