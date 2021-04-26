@@ -21,22 +21,17 @@ func (rf *Raft) persist() {
 	e.Encode(rf.votedFor)
 	e.Encode(rf.getVotedTickets)
 	e.Encode(rf.logs)
-	//e.Encode(rf.commitIndex)
-	//e.Encode(rf.lastApplied)
-	//e.Encode(rf.nextIndex)
-	//e.Encode(rf.matchIndex)
 	state := w.Bytes()
 
-	//DPrintf("[persist] %v, len(snapshotData)=%v", rf.me, len(rf.snapshotData))
+	DPrintf("[persist] %v, len(snapshotData)=%v", rf.me, len(rf.snapshotData))
 	rf.persister.SaveStateAndSnapshot(state, rf.snapshotData)
 }
 
 //
 // restore previously persisted state.
 //
-//func (rf *Raft) readPersist(state []byte, snapshotBytes []byte) {
 func (rf *Raft) readPersist(state []byte, snapshotBytes []byte) {
-	//DPrintf("[readPersist] %v readPersist", rf.me)
+	DPrintf("[readPersist] %v readPersist", rf.me)
 	if state == nil || len(state) < 1 { // bootstrap without any state?
 		return
 	}
@@ -51,23 +46,11 @@ func (rf *Raft) readPersist(state []byte, snapshotBytes []byte) {
 	var votedFor int
 	var getVotedTickets int32
 	var logs []*Entry
-	//var commitIndex int
-	//var lastApplied int
-	//var nextIndex []int
-	//var matchIndex []int
 	if d.Decode(&currentTerm) != nil ||
 		d.Decode(&role) != nil ||
 		d.Decode(&votedFor) != nil ||
 		d.Decode(&getVotedTickets) != nil ||
 		d.Decode(&logs) != nil {
-		//d.Decode(&commitIndex) != nil {
-		//d.Decode(&lastApplied) != nil ||
-		//d.Decode(&nextIndex) != nil ||
-		//d.Decode(&matchIndex) != nil {
-		//if d.Decode(&currentTerm) != nil ||
-		//d.Decode(&votedFor) != nil ||
-		//d.Decode(&getVotedTickets) != nil ||
-		//d.Decode(&logs) != nil {
 		log.Fatalf("[readPersist] %v decode error", rf.me)
 	} else {
 		rf.currentTerm = currentTerm
@@ -75,10 +58,6 @@ func (rf *Raft) readPersist(state []byte, snapshotBytes []byte) {
 		rf.votedFor = votedFor
 		rf.getVotedTickets = getVotedTickets
 		rf.logs = logs
-		//rf.commitIndex = commitIndex
-		//rf.lastApplied = lastApplied
-		//rf.nextIndex = nextIndex
-		//rf.matchIndex = matchIndex
 	}
 
 	rf.snapshotData = snapshotBytes
