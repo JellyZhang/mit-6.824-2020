@@ -8,7 +8,7 @@ on:
 
 jobs:
 
-  build:
+  Test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -23,3 +23,15 @@ jobs:
 
     - name: Test Lab2A
       run: /bin/bash -c 'cd src/raft && go env -w GO111MODULE=on && go test -race -run 2A'
+      
+    - name: Test Lab2B
+      run: /bin/bash -c 'cd src/raft && go env -w GO111MODULE=on && go test -race -run 2B'
+      
+    - name: Test Lab2C
+      run: /bin/bash -c 'cd src/raft && go env -w GO111MODULE=on && go test -race -run 2C'
+      
+    - name: Test Lab2D
+      run: /bin/bash -c 'cd src/raft && go env -w GO111MODULE=on && go test -race -run 2D'
+      
+    - name: Test Lab3A
+      run: /bin/bash -c 'cd src/raft && go env -w GO111MODULE=on && go test -race -run 3A'
