@@ -17,26 +17,30 @@ jobs:
         with:
           go-version: 1.15
 
-      - name: Test Lab1
-        working-directory: ./src/main
-        run: bash ./test-mr.sh
-
-      - name: Test Lab2A
-        working-directory: ./src/raft
-        run: go test -race -run 2A
-
-      - name: Test Lab2B
-        working-directory: ./src/raft
-        run: go test -race -run 2B
-
-      - name: Test Lab2C
-        working-directory: ./src/raft
-        run: go test -race -run 2C
-
-      - name: Test Lab2D
-        working-directory: ./src/raft
-        run: go test -race -run 2D
-
-      - name: Test Lab3A
+      - name: Test Lab3A Speed only
         working-directory: ./src/kvraft
-        run: go test -race -run 3A
+        run: go test -race -run TestSpeed3A
+
+      #- name: Test Lab1
+      #working-directory: ./src/main
+      #run: bash ./test-mr.sh
+
+      #- name: Test Lab2A
+      #working-directory: ./src/raft
+      #run: go test -race -run 2A
+
+      #- name: Test Lab2B
+      #working-directory: ./src/raft
+      #run: go test -race -run 2B
+
+      #- name: Test Lab2C
+      #working-directory: ./src/raft
+      #run: go test -race -run 2C
+
+      #- name: Test Lab2D
+      #working-directory: ./src/raft
+      #run: go test -race -run 2D
+
+      #- name: Test Lab3A
+      #working-directory: ./src/kvraft
+      #run: go test -race -run 3A

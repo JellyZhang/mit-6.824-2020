@@ -170,7 +170,6 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		getVotedTickets: 0,
 		logs:            make([]*Entry, 0),
 		commitIndex:     0,
-		lastApplied:     0,
 		snapshotData:    make([]byte, 0),
 	}
 

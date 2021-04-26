@@ -43,9 +43,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.role = Follower
 	rf.refreshElectionTimeout()
 
-	rf.logmu.Lock()
-	//rf.persist()
-	rf.logmu.Unlock()
 	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.currentTerm)
 
 	rf.logmu.Lock()
@@ -83,7 +80,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 		newLog = append(newLog, args.Entries...)
 		rf.logs = newLog
-		//rf.persist()
 	}
 
 	// update commitIndex.
@@ -106,10 +102,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			rf.applyCh <- msg
 		}
 		rf.commitIndex = newCommitIndex
-		rf.lastApplied = newCommitIndex
-		rf.logmu.Lock()
-		//rf.persist()
-		rf.logmu.Unlock()
 	}
 	return
 }

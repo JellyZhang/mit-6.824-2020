@@ -50,7 +50,6 @@ type Raft struct {
 	lastHeartbeat   int64
 	logs            []*Entry
 	commitIndex     int
-	lastApplied     int
 	nextIndex       []int
 	matchIndex      []int
 	applyCh         chan ApplyMsg
