@@ -9,5 +9,3 @@ mrworker
 .DS_Store
 t
 t2
-go.mod
-go.sum
