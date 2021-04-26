@@ -24,9 +24,9 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
 	defer func() {
-		rf.logmu.Lock()
-		rf.persist()
-		rf.logmu.Unlock()
+		//rf.logmu.Lock()
+		//rf.persist()
+		//rf.logmu.Unlock()
 	}()
 	DPrintf("[AppendEntries] %v get AppendEntries, args=%+v", rf.me, args)
 
@@ -80,7 +80,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 		newLog = append(newLog, args.Entries...)
 		rf.logs = newLog
-		//rf.persist()
+		rf.persist()
 	}
 
 	// update commitIndex.
@@ -103,7 +103,6 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			rf.applyCh <- msg
 		}
 		rf.commitIndex = newCommitIndex
-
 		//rf.logmu.Lock()
 		//rf.persist()
 		//rf.logmu.Unlock()
