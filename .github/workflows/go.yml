@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  Test Lab1&Lab2:
+  Test-Lab1-Lab2:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -37,7 +37,7 @@ jobs:
         working-directory: ./src/raft
         run: go test -race -run 2D
 
-  Test Lab3:
+  Test-Lab3:
     # Github Action's ubuntu environment can't pass TestSpeed3A due to poor cpu(2-core) while macos(3-core) can.
     runs-on: ubuntu-18.04
     steps:
