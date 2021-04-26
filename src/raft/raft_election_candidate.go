@@ -73,7 +73,14 @@ func (rf *Raft) askForVote(server int, startTerm int, lastLogIndex int, lastLogT
 		if rf.getVotedTickets >= rf.getMajority() {
 			rf.role = Leader
 			rf.leaderInitialization()
-			DPrintf("[askForVote] %v is leader now", rf.me)
+			//if rf.currentTerm > 1 {
+			//rf.appendLog(&Entry{
+			//Index:   rf.getLastLogIndex() + 1,
+			//Term:    rf.currentTerm,
+			//Command: nil,
+			//})
+			//}
+			DPrintf("[askForVote] %v is leader now, log=%v", rf.me, rf.logs)
 		}
 		rf.persist()
 		return

@@ -120,6 +120,7 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 		Term:    term,
 		Command: command,
 	})
+	go rf.leaderHandler()
 
 	return index, term, isLeader
 }

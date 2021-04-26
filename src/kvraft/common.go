@@ -16,6 +16,7 @@ type PutAppendArgs struct {
 	// You'll have to add definitions here.
 	// Field names must start with capital letters,
 	// otherwise RPC will break.
+	SerializeNumber int64
 }
 
 type PutAppendReply struct {
@@ -23,11 +24,23 @@ type PutAppendReply struct {
 }
 
 type GetArgs struct {
-	Key string
+	Key             string
+	SerializeNumber int64
 	// You'll have to add definitions here.
 }
 
 type GetReply struct {
 	Err   Err
+	Index int
 	Value string
+}
+
+type CommitIndexArgs struct {
+	Key string
+}
+
+type CommitIndexReply struct {
+	Err   Err
+	Value string
+	Index int
 }

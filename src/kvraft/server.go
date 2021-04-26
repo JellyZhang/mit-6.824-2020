@@ -1,6 +1,7 @@
 package kvraft
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -10,7 +11,7 @@ import (
 	"6.824/raft"
 )
 
-const Debug = false
+const Debug = true
 
 func DPrintf(format string, a ...interface{}) (n int, err error) {
 	if Debug {
@@ -19,10 +20,22 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 	return
 }
 
+type Command int
+
+const (
+	GET = iota + 1
+	PUT
+	APPEND
+)
+
 type Op struct {
 	// Your definitions here.
 	// Field names must start with capital letters,
 	// otherwise RPC will break.
+	OpIndex int64
+	Command Command
+	Key     string
+	Value   string
 }
 
 type KVServer struct {
@@ -35,14 +48,13 @@ type KVServer struct {
 	maxraftstate int // snapshot if log grows this big
 
 	// Your definitions here.
-}
-
-func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
-	// Your code here.
-}
-
-func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
-	// Your code here.
+	isLeader    bool
+	total       int
+	storage     map[string]string
+	commitIndex int
+	logmu       sync.Mutex
+	havedone    map[int64]struct{}
+	notifyCh    chan Op
 }
 
 //
@@ -95,6 +107,56 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	kv.rf = raft.Make(servers, me, persister, kv.applyCh)
 
 	// You may need initialization code here.
+	kv.total = len(servers)
+	kv.storage = make(map[string]string)
+	kv.commitIndex = 0
+	kv.havedone = make(map[int64]struct{})
+	kv.isLeader = true
+	kv.notifyCh = make(chan Op, 10000)
+	go kv.listener()
 
 	return kv
+}
+
+func (kv *KVServer) listener() {
+	for msg := range kv.applyCh {
+		kv.logmu.Lock()
+		isLeader := kv.isLeader
+		kv.logmu.Unlock()
+
+		DPrintf("[listener] %v get msg=%+v, isLeader=%v", kv.me, msg, isLeader)
+		if msg.CommandValid == true {
+			if msg.Command == nil {
+				continue
+			}
+			m, ok := msg.Command.(Op)
+			if !ok {
+				panic("assert error")
+			}
+			kv.logmu.Lock()
+			if _, ok := kv.havedone[m.OpIndex]; !ok {
+				if m.Command == PUT {
+					kv.storage[m.Key] = m.Value
+				} else if m.Command == APPEND {
+					kv.storage[m.Key] = kv.storage[m.Key] + m.Value
+				}
+				kv.havedone[m.OpIndex] = struct{}{}
+			}
+			kv.logmu.Unlock()
+			kv.commitIndex = msg.CommandIndex
+			if isLeader {
+				kv.notifyCh <- m
+			}
+		} else {
+			bs := msg.Snapshot
+			newstorage := make(map[string]string)
+			if err := json.Unmarshal(bs, &newstorage); err != nil {
+				panic(err)
+			}
+			kv.storage = newstorage
+		}
+
+		DPrintf("[listener] %v over get msg=%+v, isLeader=%v", kv.me, msg, isLeader)
+
+	}
 }

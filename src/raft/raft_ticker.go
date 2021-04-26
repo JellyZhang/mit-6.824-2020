@@ -10,35 +10,39 @@ const leaderHeartBeatDuration = time.Duration(100) * time.Millisecond
 func (rf *Raft) leaderTicker() {
 	for rf.killed() == false {
 		time.Sleep(leaderHeartBeatDuration)
-		rf.mu.Lock()
-		r := rf.role
-		t := rf.currentTerm
-		if r == Leader {
-			DPrintf("[leaderTicker] %v send heartsbeats", rf.me)
-			rf.logmu.Lock()
-			for i := range rf.peers {
-				if i == rf.me {
-					continue
-				}
-				prevLogIndex := rf.nextIndex[i] - 1
-				if prevLogIndex < rf.getSnapshotLastIndex() {
-					DPrintf("[leaderTicker] leader %v choose to install snapShot to %v, prevLogIndex=%v", rf.me, i, prevLogIndex)
-					go rf.doInstallSnapshot(i, t, rf.getSnapshotLastIndex(), rf.getSnapshotLastTerm(), rf.getSnapshotLastData())
-				} else {
-					prevLogTerm := rf.getLogTerm(prevLogIndex)
-					DPrintf("[leaderTicker] %v prevLogIndex=%v, prevLogTerm=%v", i, prevLogIndex, prevLogTerm)
-					entries := make([]*Entry, 0)
-					for j := prevLogIndex + 1; j <= rf.getLastLogIndex(); j++ {
-						entries = append(entries, rf.getLog(j))
-					}
-					leaderCommitIndex := rf.commitIndex
-					go rf.sendHeartbeat(i, t, prevLogIndex, prevLogTerm, entries, leaderCommitIndex)
-				}
-			}
-			rf.logmu.Unlock()
-		}
-		rf.mu.Unlock()
+		rf.leaderHandler()
 	}
+}
+
+func (rf *Raft) leaderHandler() {
+	rf.mu.Lock()
+	r := rf.role
+	t := rf.currentTerm
+	if r == Leader {
+		DPrintf("[leaderHandler] %v start to send heartsbeats", rf.me)
+		rf.logmu.Lock()
+		for i := range rf.peers {
+			if i == rf.me {
+				continue
+			}
+			prevLogIndex := rf.nextIndex[i] - 1
+			if prevLogIndex < rf.getSnapshotLastIndex() {
+				DPrintf("[leaderHandler] leader %v choose to install snapShot to %v, prevLogIndex=%v", rf.me, i, prevLogIndex)
+				go rf.doInstallSnapshot(i, t, rf.getSnapshotLastIndex(), rf.getSnapshotLastTerm(), rf.getSnapshotLastData())
+			} else {
+				prevLogTerm := rf.getLogTerm(prevLogIndex)
+				DPrintf("[leaderHandler] %v prevLogIndex=%v, prevLogTerm=%v", i, prevLogIndex, prevLogTerm)
+				entries := make([]*Entry, 0)
+				for j := prevLogIndex + 1; j <= rf.getLastLogIndex(); j++ {
+					entries = append(entries, rf.getLog(j))
+				}
+				leaderCommitIndex := rf.commitIndex
+				go rf.sendHeartbeat(i, t, prevLogIndex, prevLogTerm, entries, leaderCommitIndex)
+			}
+		}
+		rf.logmu.Unlock()
+	}
+	rf.mu.Unlock()
 }
 
 // The ticker go routine starts a new election if this peer hasn't received
@@ -54,7 +58,7 @@ func (rf *Raft) electionTicker() {
 		rf.mu.Lock()
 		after := rf.lastHeartbeat
 		role := rf.role
-		DPrintf("[electionTicker] check election timeout, me=%v", rf.me)
+		DPrintf("[electionTicker] check election timeout, me=%v, role=%v", rf.me, role)
 
 		// if this node dont get leader's heartsbeats during sleep, then start election
 		if before == after && role != Leader {

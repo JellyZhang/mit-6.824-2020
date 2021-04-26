@@ -23,6 +23,11 @@ type AppendEntriesReply struct {
 func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply) {
 	rf.mu.Lock()
 	defer rf.mu.Unlock()
+	defer func() {
+		rf.logmu.Lock()
+		rf.persist()
+		rf.logmu.Unlock()
+	}()
 	DPrintf("[AppendEntries] %v get AppendEntries, args=%+v", rf.me, args)
 
 	// AppendEntries request from old term, ignore.
@@ -39,12 +44,18 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 	rf.refreshElectionTimeout()
 
 	rf.logmu.Lock()
-	rf.persist()
+	//rf.persist()
 	rf.logmu.Unlock()
 	DPrintf("[AppendEntries] %v set term to %v ", rf.me, rf.currentTerm)
 
-	// check if prevLogIndex and prevLogTerm match.
 	rf.logmu.Lock()
+
+	// too old request
+	if args.PrevLogIndex < rf.getSnapshotLastIndex() {
+		rf.logmu.Unlock()
+		return
+	}
+	// check if prevLogIndex and prevLogTerm match.
 	if args.PrevLogIndex > rf.getLastLogIndex() || rf.getLogTerm(args.PrevLogIndex) != args.PrevLogTerm || (args.PrevLogIndex == rf.getSnapshotLastIndex() && args.PrevLogTerm != rf.getSnapshotLastTerm()) {
 		var confictTermFirstIndex int
 		if args.PrevLogIndex <= rf.getLastLogIndex() {
@@ -72,7 +83,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		}
 		newLog = append(newLog, args.Entries...)
 		rf.logs = newLog
-		rf.persist()
+		//rf.persist()
 	}
 
 	// update commitIndex.
@@ -97,7 +108,7 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 		rf.commitIndex = newCommitIndex
 		rf.lastApplied = newCommitIndex
 		rf.logmu.Lock()
-		rf.persist()
+		//rf.persist()
 		rf.logmu.Unlock()
 	}
 	return
