@@ -78,6 +78,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/main  golang:1.15-stretch bash ./test-mr
 ```shell
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
+cd src/raft
 go test -race -run 2A
 ```
 
@@ -111,6 +112,7 @@ go test -race -run 2A
 ```shell
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
+cd src/raft
 go test -race -run 2B
 ```
 
@@ -146,6 +148,7 @@ go test -race -run 2B
 ```bash
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
+cd src/raft
 go test -race -run 2C
 ```
 
@@ -174,6 +177,7 @@ go test -race -run 2C
 ```bash
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
+cd src/raft
 go test -race -run 2D
 ```
 
