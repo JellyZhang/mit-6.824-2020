@@ -1,6 +1,8 @@
 # mit-6.824-2021
 
-Go implements of mit-6.824 labs. [![Go](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml/badge.svg?branch=master&event=push)](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml) ⬅️ test results may be different in different environment.(especially in docker). I only make sure `Github Action` passes tests.(indicating by this badge)
+Go implements of mit-6.824 labs.
+
+ [![Go](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml/badge.svg?branch=master&event=push)](https://github.com/JellyZhang/mit-6.824-2021/actions/workflows/go.yml) ⬅️ test results may be different in different environment.(especially in docker). I only make sure `Github Action` passes tests.(indicating by this badge)
 
 # Table of Contents
 
@@ -42,6 +44,8 @@ docker run -v $PWD:/6.824 -w /6.824/src/main  golang:1.15-stretch bash ./test-mr
 
 // or you can test many times with:
 // docker run -v $PWD:/6.824 -w /6.824/src/main  golang:1.15-stretch bash ./test-mr-many.sh 3
+
+// Warning: running tests in docker may fail due to virtual environment.
 ```
 
 ### Pic
@@ -74,7 +78,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/main  golang:1.15-stretch bash ./test-mr
 ```shell
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
-docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2A
+go test -race -run 2A
 ```
 
 ### Pic
@@ -107,7 +111,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 ```shell
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
-docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2B
+go test -race -run 2B
 ```
 
 ### Pic
@@ -142,7 +146,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 ```bash
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
-docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2C
+go test -race -run 2C
 ```
 
 ### Pic
@@ -170,7 +174,7 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -
 ```bash
 git clone https://github.com/JellyZhang/mit-6.824-2021.git
 cd mit-6.824-2021
-docker run -v $PWD:/6.824 -w /6.824/src/raft golang:1.15-stretch go test -race -run 2D
+go test -race -run 2D
 ```
 
 ### Pic
