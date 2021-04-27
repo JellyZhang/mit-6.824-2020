@@ -1,5 +1,7 @@
 package kvraft
 
+import "time"
+
 //
 // shared by Put and Append.
 //
@@ -11,9 +13,7 @@ package kvraft
 // arguments. and reply must be passed as a pointer.
 //
 func (ck *Clerk) PutAppend(key string, value string, op string) {
-	DPrintf("[Ck.PutAppend] %v start putAppend op=%v, key=%v, value=%v ", ck.me, op, key, value)
-
-	ck.index++
+	DPrintf("[Ck.PutAppend] start putAppend op=%v, key=%v, value=%v ", op, key, value)
 
 	args := &PutAppendArgs{
 		Key:             key,
@@ -28,62 +28,20 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	}
 
 	reply := &PutAppendReply{}
-	if ok := ck.servers[ck.leaderIndex].Call("KVServer.PutAppend", args, reply); ok && reply.Err == OK {
-		DPrintf("[Ck.PutAppend] %v success of key=%v, value=%v", ck.me, key, value)
-		return
-	}
 
-	DPrintf("[Ck.PutAppend] %v rpc to leader error or wrongLeader", ck.me)
-	for true {
-		for i := 0; i < len(ck.servers); i++ {
-			if ok := ck.servers[i].Call("KVServer.PutAppend", args, reply); !ok {
-				DPrintf("[Ck.PutAppend] %v rpc to %v error", ck.me, i)
-			}
-			if reply.Err == OK {
-				ck.leaderIndex = i
-				DPrintf("[ck.putAppend] %v get reply for key=%v, reply=%+v, set leaderIndex=%v", ck.me, key, reply, i)
-				return
-			}
+	// start from recorded leaderIndex, try every server
+	for i := ck.leaderIndex; ; i = (i + 1) % len(ck.servers) {
+		if ok := ck.servers[i].Call("KVServer.PutAppend", args, reply); !ok {
+			DPrintf("[Ck.PutAppend] rpc to %v error", i)
+		}
+		if reply.Err == OK {
+			ck.leaderIndex = i
+			DPrintf("[ck.putAppend] get reply for key=%v, reply=%+v, set leaderIndex=%v", key, reply, i)
+			break
+		} else {
+			time.Sleep(clientTryInterval)
 		}
 	}
-	DPrintf("[Ck.putAppend] %v success of key=%v, value=%v", ck.me, key, value)
+	DPrintf("[Ck.putAppend] success of key=%v, value=%v", key, value)
 	return
-
-	//for true {
-	//args1 := &CommitIndexArgs{}
-	//reply1 := &CommitIndexReply{}
-	//cnt := 0
-	//for i := 0; i < len(ck.servers); i++ {
-	//if ok := ck.servers[i].Call("KVServer.CommitIndex", args1, reply1); !ok {
-	//DPrintf("[Ck.putAppend] rpc error in commitIndex")
-	//continue
-	//}
-	////DPrintf("[Ck.PutAppend] get commitIndex from %v success, reply=%v", i, reply1)
-	//if reply1.Index == index {
-	//cnt++
-	//}
-	//}
-	//if cnt >= (len(ck.servers)+1)/2 {
-	//ck.index = index
-	//DPrintf("[Ck.PutAppend] success end op=%v, key=%v, value=%v, ck.index=%v", op, key, value, ck.index)
-	//return
-	//}
-	//}
 }
-
-//func (ck *Clerk) doPutAppend(commandIndex int, server int, key string, value string, op string) {
-
-//args := &PutAppendArgs{
-//Key:   key,
-//Value: value,
-//}
-
-//if op == "Put" {
-//args.Op = "Put"
-//} else {
-//args.Op = "Append"
-//}
-
-////reply := &PutAppendReply{}
-
-//}

@@ -26,4 +26,5 @@
 	go test -race -run TestPersistPartitionUnreliable3A > t
 14:
 	go test -race -run TestPersistPartitionUnreliableLinearizable3A > t
-
+15:
+	go test -race -run 3A > t

@@ -4,16 +4,17 @@ import (
 	"crypto/rand"
 	"math/big"
 	"sync"
+	"time"
 
 	"6.824/labrpc"
 )
+
+const clientTryInterval = 10 * time.Millisecond
 
 type Clerk struct {
 	servers []*labrpc.ClientEnd
 	// You will have to modify this struct.
 	mu          sync.Mutex
-	index       int
-	me          int64
 	leaderIndex int
 }
 
@@ -28,10 +29,7 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 	ck := new(Clerk)
 	ck.servers = servers
 	// You'll have to add code here.
-	ck.index = 0
-	ck.me = nrand() % 100
 	ck.leaderIndex = 0
-	DPrintf("[MakeClerk] me=%v", ck.me)
 	return ck
 }
 

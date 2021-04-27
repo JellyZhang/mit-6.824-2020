@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"6.824/labgob"
 	"6.824/labrpc"
@@ -28,6 +29,8 @@ const (
 	APPEND
 )
 
+const serverTimeoutInterval = 500 * time.Millisecond
+
 type Op struct {
 	// Your definitions here.
 	// Field names must start with capital letters,
@@ -48,13 +51,15 @@ type KVServer struct {
 	maxraftstate int // snapshot if log grows this big
 
 	// Your definitions here.
-	isLeader    bool
+	isLeader    atomic.Value
 	total       int
-	storage     map[string]string
 	commitIndex int
-	logmu       sync.Mutex
-	havedone    map[int64]struct{}
 	notifyCh    chan Op
+
+	// mapmu controls haveDone and storage
+	mapmu    sync.Mutex
+	haveDone map[int64]struct{}
+	storage  map[string]string
 }
 
 //
@@ -109,10 +114,9 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 	// You may need initialization code here.
 	kv.total = len(servers)
 	kv.storage = make(map[string]string)
-	kv.commitIndex = 0
-	kv.havedone = make(map[int64]struct{})
-	kv.isLeader = true
-	kv.notifyCh = make(chan Op, 10000)
+	kv.haveDone = make(map[int64]struct{})
+	kv.isLeader.Store(true)
+	kv.notifyCh = make(chan Op, 1000)
 	go kv.listener()
 
 	return kv
@@ -120,29 +124,23 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 
 func (kv *KVServer) listener() {
 	for msg := range kv.applyCh {
-		kv.logmu.Lock()
-		isLeader := kv.isLeader
-		kv.logmu.Unlock()
+		kv.mapmu.Lock()
 
+		isLeader := kv.isLeader.Load().(bool)
 		DPrintf("[listener] %v get msg=%+v, isLeader=%v", kv.me, msg, isLeader)
 		if msg.CommandValid == true {
-			if msg.Command == nil {
-				continue
-			}
 			m, ok := msg.Command.(Op)
 			if !ok {
 				panic("assert error")
 			}
-			kv.logmu.Lock()
-			if _, ok := kv.havedone[m.OpIndex]; !ok {
+			if _, ok := kv.haveDone[m.OpIndex]; !ok {
 				if m.Command == PUT {
 					kv.storage[m.Key] = m.Value
 				} else if m.Command == APPEND {
 					kv.storage[m.Key] = kv.storage[m.Key] + m.Value
 				}
-				kv.havedone[m.OpIndex] = struct{}{}
+				kv.haveDone[m.OpIndex] = struct{}{}
 			}
-			kv.logmu.Unlock()
 			kv.commitIndex = msg.CommandIndex
 			if isLeader {
 				kv.notifyCh <- m
@@ -157,6 +155,6 @@ func (kv *KVServer) listener() {
 		}
 
 		DPrintf("[listener] %v over get msg=%+v, isLeader=%v", kv.me, msg, isLeader)
-
+		kv.mapmu.Unlock()
 	}
 }

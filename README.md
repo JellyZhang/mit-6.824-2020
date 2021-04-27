@@ -131,10 +131,10 @@ go test -race -run 2B
   - Basic Process:
     1. Leader append logs to Followers.
     2. Leader find out that one LogEntry (assume index=`X` ) have appended in majority of the cluster.
-    3. Leader increase his commitIndex to `X`, and apply commands before `X` by applyChannel.
+    3. Leader increase his commitIndex to `X`, and apply commands before and including `X` by applyChannel.
     4. Leader tell Followers that commitIndex is `X` now in next AppendEntries RpcCall.
-    5. Follower find out that LeaderCommitIndex has increased, set his commitIndex to `X`, and apply commands before `X`
-  - Follower only give vote to Candidate if his log is more up-to-date. You should read the 5.4.1 to find out how to define "up-to-date".
+    5. Follower find out that LeaderCommitIndex has increased, set his commitIndex to `X`, and apply commands before and including `X`
+  - Follower only give vote to Candidate if his log is **more up-to-date**. You should read the 5.4.1 to find out how to define "up-to-date".
   - Follower only append logs if leader's _prevLogIndex_ and _prevLogTerm_ match Follower's.
   - ApplyChannal is used for one node to apply command to tester when _commitIndex_ increases.
   - If you finished Lab2B but find out it takes about 60s to finish TestBackUp2B, you should optimize the way you decrease nextIndex[i]. see more in the quoted section in raft paper 5.3.
