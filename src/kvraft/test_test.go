@@ -305,7 +305,6 @@ func GenericTest(t *testing.T, part string, nclients int, nservers int, unreliab
 		atomic.StoreInt32(&done_clients, 1)     // tell clients to quit
 		atomic.StoreInt32(&done_partitioner, 1) // tell partitioner to quit
 
-		time.Sleep(5 * time.Second)
 		if partitions {
 			// log.Printf("wait for partitioner\n")
 			<-ch_partitioner
