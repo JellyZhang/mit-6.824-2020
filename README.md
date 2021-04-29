@@ -28,10 +28,14 @@ Go implements of mit-6.824 labs.
          * [Run](#run-4)
          * [Pic](#pic-4)
          * [Comments](#comments-4)
-      * [Summary](#summary)
+      * [Lab2 Summary](#lab2-summary)
          * [Run](#run-5)
          * [Pic](#pic-5)
          * [Comments](#comments-5)
+      * [Lab3A](#lab3a)
+         * [Run](#run-6)
+         * [Pic](#pic-6)
+         * [Comments](#comments-6)
 
 ## Lab1
 

@@ -16,6 +16,7 @@ type Clerk struct {
 	// You will have to modify this struct.
 	mu          sync.Mutex
 	leaderIndex int
+	me          int64
 }
 
 func nrand() int64 {
@@ -30,6 +31,7 @@ func MakeClerk(servers []*labrpc.ClientEnd) *Clerk {
 	ck.servers = servers
 	// You'll have to add code here.
 	ck.leaderIndex = 0
+	ck.me = nrand()
 	return ck
 }
 

@@ -1,7 +1,6 @@
 package kvraft
 
 import (
-	"encoding/json"
 	"time"
 )
 
@@ -12,7 +11,8 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	defer kv.mu.Unlock()
 
 	cmd := Op{
-		OpIndex: args.SerializeNumber,
+		ClientNum: args.ClientNumber,
+		OpIndex:   args.SerializeNumber,
 	}
 	if args.Op == "Put" {
 		cmd.Command = PUT
@@ -24,14 +24,15 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	cmd.Value = args.Value
 	DPrintf("[KVServer.PutAppend] %v get args=%+v", kv.me, args)
 	kv.mapmu.Lock()
-	_, ok := kv.haveDone[args.SerializeNumber]
+	havedone, ok := kv.haveDone[args.ClientNumber]
+	//ok := kv.haveDone == args.SerializeNumber
 	kv.mapmu.Unlock()
-
-	if ok {
+	if ok && havedone == args.SerializeNumber {
 		DPrintf("[KVServer.PutAppend] %v find already done, key=%v, value=%v", kv.me, args.Key, args.Value)
 		reply.Err = OK
 		return
 	}
+
 	for true {
 		index, _, isLeader := kv.rf.Start(cmd)
 		kv.isLeader.Store(isLeader)
@@ -41,6 +42,7 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 			return
 		}
 		DPrintf("[KVServer.PutAppend] %v success start, index=%v, key=%v, value=%v ", kv.me, index, args.Key, args.Value)
+
 		for start := time.Now(); time.Since(start) < serverTimeoutInterval; {
 			select {
 			case <-time.After(serverTimeoutInterval):
@@ -50,13 +52,6 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 			case notify := <-kv.notifyCh:
 				if notify.OpIndex == args.SerializeNumber {
 					reply.Err = OK
-					if kv.maxraftstate != -1 && kv.commitIndex%10 == 0 {
-						jsonString, err := json.Marshal(kv.storage)
-						if err != nil {
-							panic(err)
-						}
-						kv.rf.Snapshot(kv.commitIndex, []byte(jsonString))
-					}
 					DPrintf("[KVServer.PutAppend] %v success receive key=%v, value=%v", kv.me, args.Key, args.Value)
 					return
 				}
@@ -67,6 +62,5 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 		reply.Err = ErrWrongLeader
 		return
 	}
-
 	return
 }

@@ -16,6 +16,7 @@ func (ck *Clerk) PutAppend(key string, value string, op string) {
 	DPrintf("[Ck.PutAppend] start putAppend op=%v, key=%v, value=%v ", op, key, value)
 
 	args := &PutAppendArgs{
+		ClientNumber:    ck.me,
 		Key:             key,
 		Value:           value,
 		SerializeNumber: nrand(),

@@ -18,6 +18,7 @@ func (ck *Clerk) Get(key string) string {
 	DPrintf("[Ck.Get] start get, key=%v", key)
 
 	args := &GetArgs{
+		ClientNumber:    ck.me,
 		Key:             key,
 		SerializeNumber: nrand(),
 	}

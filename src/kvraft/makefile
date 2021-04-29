@@ -28,3 +28,27 @@
 	go test -race -run TestPersistPartitionUnreliableLinearizable3A > t
 15:
 	go test -race -run 3A > t
+16:
+	go test -race -run TestSnapshotRPC3B > t
+17:
+	go test -race -run TestSnapshotSize3B > t
+18:
+	go test -race -run TestSpeed3B > t
+19:
+	go test -race -run TestSnapshotRecover3B > t
+20:
+	go test -race -run TestSnapshotRecoverManyClients3B > t
+21:
+	go test -race -run TestSnapshotUnreliable3B > t
+22:
+	go test -race -run TestSnapshotUnreliableRecover3B > t
+23:
+	go test -race -run TestSnapshotUnreliableRecoverConcurrentPartition3B > t
+24:
+	go test -race -run TestSnapshotUnreliableRecoverConcurrentPartitionLinearizable3B > t
+
+
+
+
+
+

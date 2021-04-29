@@ -17,13 +17,10 @@ func (rf *Raft) persist() {
 	w := new(bytes.Buffer)
 	e := labgob.NewEncoder(w)
 	e.Encode(rf.currentTerm)
-	e.Encode(rf.role)
-	e.Encode(rf.votedFor)
-	e.Encode(rf.getVotedTickets)
 	e.Encode(rf.logs)
 	state := w.Bytes()
 
-	DPrintf("[persist] %v, len(snapshotData)=%v", rf.me, len(rf.snapshotData))
+	DPrintf("[persist] %v, len(Statesize)=%v", rf.me, len(state))
 	rf.persister.SaveStateAndSnapshot(state, rf.snapshotData)
 }
 
@@ -42,21 +39,12 @@ func (rf *Raft) readPersist(state []byte, snapshotBytes []byte) {
 	r := bytes.NewBuffer(state)
 	d := labgob.NewDecoder(r)
 	var currentTerm int
-	var role Role
-	var votedFor int
-	var getVotedTickets int32
 	var logs []*Entry
 	if d.Decode(&currentTerm) != nil ||
-		d.Decode(&role) != nil ||
-		d.Decode(&votedFor) != nil ||
-		d.Decode(&getVotedTickets) != nil ||
 		d.Decode(&logs) != nil {
 		log.Fatalf("[readPersist] %v decode error", rf.me)
 	} else {
 		rf.currentTerm = currentTerm
-		rf.role = role
-		rf.votedFor = votedFor
-		rf.getVotedTickets = getVotedTickets
 		rf.logs = logs
 	}
 

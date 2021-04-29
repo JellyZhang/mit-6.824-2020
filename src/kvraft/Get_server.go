@@ -9,10 +9,11 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 	defer kv.mu.Unlock()
 
 	cmd := Op{
-		OpIndex: args.SerializeNumber,
-		Command: GET,
-		Key:     args.Key,
-		Value:   "",
+		ClientNum: args.ClientNumber,
+		OpIndex:   args.SerializeNumber,
+		Command:   GET,
+		Key:       args.Key,
+		Value:     "",
 	}
 
 	DPrintf("[KVServer.Get] get args=%+v", args)
@@ -44,8 +45,8 @@ func (kv *KVServer) Get(args *GetArgs, reply *GetReply) {
 			}
 		}
 		DPrintf("[KVServer.PutAppend] %v time out", kv.me)
-		reply.Err = ErrWrongLeader
 		kv.isLeader.Store(false)
+		reply.Err = ErrWrongLeader
 		return
 	}
 	return

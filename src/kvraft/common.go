@@ -10,6 +10,7 @@ type Err string
 
 // Put or Append
 type PutAppendArgs struct {
+	ClientNumber    int64
 	Key             string
 	Value           string
 	Op              string // "Put" or "Append"
@@ -21,6 +22,7 @@ type PutAppendReply struct {
 }
 
 type GetArgs struct {
+	ClientNumber    int64
 	Key             string
 	SerializeNumber int64
 }

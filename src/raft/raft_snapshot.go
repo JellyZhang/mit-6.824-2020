@@ -37,3 +37,15 @@ func (rf *Raft) Snapshot(index int, snapshotBytes []byte) {
 	rf.logs = newLog
 	DPrintf("[Snapshot] %v snapshot success, newLog=%v", rf.me, rf.logs)
 }
+
+func (rf *Raft) GetRaftStateSize() int {
+	return rf.persister.RaftStateSize()
+}
+
+func (rf *Raft) GetSnapshot() []byte {
+	return rf.persister.ReadSnapshot()
+}
+
+func (rf *Raft) GetRaftState() []byte {
+	return rf.persister.raftstate
+}
