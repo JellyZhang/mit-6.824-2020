@@ -249,7 +249,7 @@ go test -race -run 3A
 
 ### Pic
 
-![](https://gitee.com/JellyZhang_55ee/blogpic/raw/master/img/20210429143310.png)
+![](https://gitee.com/JellyZhang_55ee/blogpic/raw/master/img/20210429194138.png)
 
 ### Comments
 
@@ -257,8 +257,8 @@ go test -race -run 3A
 graph TD
   client1(client) --> s1
   subgraph service cluster
-	  s1[service_leader]
-	  s2[service_node]
+  	s1[service_leader]
+  	s2[service_node]
   	s3[service_node]
   end
   subgraph raft cluster
