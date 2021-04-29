@@ -78,8 +78,9 @@ jobs:
         run: go test -race -run 2D
 
   Test-Lab3A:
-    # Github Action's ubuntu environment may can't pass TestSpeed3A due to poor cpu(2-core) while macos(3-core) can.
-    runs-on: ubuntu-18.04
+    # Github Action's ubuntu environment may can't pass TestSpeed3A due to poor cpu(2-core) while macos(3-core) usually can.
+    #runs-on: ubuntu-18.04
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
 
@@ -95,3 +96,18 @@ jobs:
       - name: Test Lab3A
         working-directory: ./src/kvraft
         run: go test -race -run 3A
+
+  Test-Lab3B:
+    # Github Action's ubuntu environment may can't pass TestSpeed3A due to poor cpu(2-core) while macos(3-core) can.
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Test Lab3A
+        working-directory: ./src/kvraft
+        run: go test -race -run 3B

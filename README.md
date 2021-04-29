@@ -257,6 +257,8 @@ go test -race -run 3A
 
 ### Comments
 
+(Use [this extension](https://chrome.google.com/webstore/detail/github-%20-mermaid/goiiopgdnkogdbjmncgedmgpoajilohe) to show Mermaid Picture in Github Readme.)
+
 ```mermaid
 graph TD
   client1(client) --> s1
@@ -295,11 +297,11 @@ class s1,r1 pink
   - You should take care of such suggestion:
     1. `client` tell `service_A` to start a command `X`
     2.  `raft_leader A`  successfully append a log=`X` to majority of cluster(`B` and `C`).
-    3. `raft_node_A` lost it's leadership.()
-    4. `raft_node_B` become leader.
+    3. `raft_node_A` lost it's leadership.
+    4. `raft_node_B` becomes leader.
     5. `client`tell `service_B` to start a command `X`
     6. `raft_leader B` successfully append another log=`X` to (`A` and `C`). (Now we have to same log `X`)
     7. `raft_leader B` apply two same log=`X` to `service_B`
     8. **`serive_B` should not excute the command twice ! **
-  - A good solution to this is ceating a random int64 as a `serial number` for every command, and each `service_node` records which command has already been excuted.
+  - A good solution to this is ceating a random int64 as a `serial number` for every command, and each `service_node` records each `client`'s last have done  `serial number`.
 
