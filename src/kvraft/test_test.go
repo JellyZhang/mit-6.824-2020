@@ -3,7 +3,6 @@ package kvraft
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -415,7 +414,7 @@ func GenericTestSpeed(t *testing.T, part string, maxraftstate int) {
 	const heartbeatInterval = 100 * time.Millisecond
 	const opsPerInterval = 3
 	const timePerOp = heartbeatInterval / opsPerInterval
-	log.Printf("[Speed3A] speed=%v", dur/numOps)
+	//log.Printf("[Speed3A] speed=%v", dur/numOps)
 	if dur > numOps*timePerOp {
 		t.Fatalf("Operations completed too slowly %v/op > %v/op\n", dur/numOps, timePerOp)
 	}

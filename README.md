@@ -206,7 +206,7 @@ Lab 2D is consists of two parts:
 
 
 
-## Summary
+## Lab2 Summary
 
 ### Run
 
@@ -231,4 +231,71 @@ docker run -v $PWD:/6.824 -w /6.824/src/raft tetafro/golang-gcc:1.15-alpine time
 - Total time for the full set of Lab 2 tests is about 8 minutes.
 - Total CPU time (user) is about 1.5m in Macos, 2m in Alpine.
 - Since pure official golang-alpine images do not have `gcc`,  so I recommend using this [golang-gcc image](https://github.com/tetafro/docker-golang-gcc)
+
+
+
+
+
+## Lab3A
+
+### Run
+
+```bash
+git clone https://github.com/JellyZhang/mit-6.824-2021.git
+cd mit-6.824-2021
+cd src/kvraft
+go test -race -run 3A
+```
+
+### Pic
+
+![](https://gitee.com/JellyZhang_55ee/blogpic/raw/master/img/20210429143310.png)
+
+### Comments
+
+```mermaid
+graph TD
+  client1(client) --> s1
+  subgraph service cluster
+	  s1[service_leader]
+	  s2[service_node]
+  	s3[service_node]
+  end
+  subgraph raft cluster
+  	r1[raft_leader]
+  	r2[raft_node]
+  	r3[raft_node]
+  end
+  s1 --> r1
+  s2 --> r2
+  s3 --> r3
+  
+classDef cyan fill:#3fc1c9,stroke:#364f6b,stroke-width:1px,color:#364f6b
+classDef pink fill:#fc5185,stroke:#f5f5f5,stroke-width:1px,color:#f5f5f5
+classDef seablue fill:#3f72af,stroke:#f5f5f5,stroke-width:1px,color:#dbe2ef
+class client1 cyan
+class s1,r1 pink
+
+```
+
+- General structure
+  - KVServices(aka service) holds a `map[string]string` as a key-value database per node.
+  - each `service_node` talk to his own `raft_node`
+  - Service use `raft cluster` to maintain `Log  Entries`, each log is a command. (like Put `x`=`y`, Get value of key=`x`)
+  - `Client` finds out which `serive_node` is leader and sends request to it.
+- Some important places:
+  - `Client` should try every `service_node` at first.(because he does not know which one is leader). Then he can remember which one is master, and start trying from him in next comming command.
+  - `service_node` should call `rf.Start()` to try to maintain a log.
+    - if his `raft_node`is leader, then he should wait for the `raft_node` to apply message by applyChannel.
+    - if his `raft_node` is not leader, then he should return `ErrWrongLeader`.
+  - You should take care of such suggestion:
+    1. `client` tell `service_A` to start a command `X`
+    2.  `raft_leader A`  successfully append a log=`X` to majority of cluster(`B` and `C`).
+    3. `raft_node_A` lost it's leadership.()
+    4. `raft_node_B` become leader.
+    5. `client`tell `service_B` to start a command `X`
+    6. `raft_leader B` successfully append another log=`X` to (`A` and `C`). (Now we have to same log `X`)
+    7. `raft_leader B` apply two same log=`X` to `service_B`
+    8. **`serive_B` should not excute the command twice ! **
+  - A good solution to this is ceating a random int64 as a `serial number` for every command, and each `service_node` records which command has already been excuted.
 
