@@ -119,7 +119,6 @@ func StartKVServer(servers []*labrpc.ClientEnd, me int, persister *raft.Persiste
 		r := bytes.NewBuffer(snapshotBytes)
 		d := labgob.NewDecoder(r)
 		var storage map[string]string
-		//var haveDone map[int64]struct{}
 		var haveDone map[int64]int64
 		if d.Decode(&storage) != nil ||
 			d.Decode(&haveDone) != nil {
@@ -149,15 +148,6 @@ func (kv *KVServer) listener() {
 			if !ok {
 				panic("assert error")
 			}
-			//if _, ok := kv.haveDone[m.OpIndex]; !ok {
-			//if m.Command == PUT {
-			//kv.storage[m.Key] = m.Value
-			//} else if m.Command == APPEND {
-			//kv.storage[m.Key] = kv.storage[m.Key] + m.Value
-			//}
-			//kv.haveDone[m.OpIndex] = struct{}{}
-			//}
-			//DPrintf("%v m=%v haveDone=%v, same=%v", kv.me, m, kv.haveDone, m.OpIndex == kv.haveDone)
 			if _, ok := kv.haveDone[m.ClientNum]; !ok || m.OpIndex != kv.haveDone[m.ClientNum] {
 				if m.Command == PUT {
 					kv.storage[m.Key] = m.Value
@@ -182,7 +172,6 @@ func (kv *KVServer) listener() {
 				r := bytes.NewBuffer(msg.Snapshot)
 				d := labgob.NewDecoder(r)
 				var storage map[string]string
-				//var haveDone map[int64]struct{}
 				var haveDone map[int64]int64
 				if d.Decode(&storage) != nil ||
 					d.Decode(&haveDone) != nil {

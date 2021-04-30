@@ -108,6 +108,6 @@ jobs:
         with:
           go-version: 1.15
 
-      - name: Test Lab3A
+      - name: Test Lab3B
         working-directory: ./src/kvraft
         run: go test -race -run 3B

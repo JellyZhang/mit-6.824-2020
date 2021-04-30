@@ -25,7 +25,6 @@ func (kv *KVServer) PutAppend(args *PutAppendArgs, reply *PutAppendReply) {
 	DPrintf("[KVServer.PutAppend] %v get args=%+v", kv.me, args)
 	kv.mapmu.Lock()
 	havedone, ok := kv.haveDone[args.ClientNumber]
-	//ok := kv.haveDone == args.SerializeNumber
 	kv.mapmu.Unlock()
 	if ok && havedone == args.SerializeNumber {
 		DPrintf("[KVServer.PutAppend] %v find already done, key=%v, value=%v", kv.me, args.Key, args.Value)
