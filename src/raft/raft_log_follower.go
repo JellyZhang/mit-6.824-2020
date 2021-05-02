@@ -79,7 +79,9 @@ func (rf *Raft) AppendEntries(args *AppendEntriesArgs, reply *AppendEntriesReply
 			newLog = append(newLog, rf.getLog(i))
 		}
 		newLog = append(newLog, args.Entries...)
-		rf.logs = newLog
+		if moreUpToDate(newLog[len(newLog)-1].Index, newLog[len(newLog)-1].Term, rf.getLastLogIndex(), rf.getLastLogTerm()) {
+			rf.logs = newLog
+		}
 		rf.persist()
 	}
 
