@@ -56,8 +56,7 @@ type KVServer struct {
 	notifyCh chan Op
 
 	// mapmu controls haveDone and storage
-	mapmu sync.Mutex
-	//haveDone map[int64]struct{}
+	mapmu    sync.Mutex
 	haveDone map[int64]int64
 	storage  map[string]string
 }
